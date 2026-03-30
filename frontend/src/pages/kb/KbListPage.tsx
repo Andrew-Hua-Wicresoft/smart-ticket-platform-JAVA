@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Card, List, Typography, Input, Empty, Skeleton } from 'antd';
+import { Card, Typography, Input, Empty, Skeleton } from 'antd';
 import { BookOutlined, SearchOutlined } from '@ant-design/icons';
 import { listPublishedArticles } from '../../api';
 import type { KbArticle } from '../../types';
@@ -42,10 +42,9 @@ export default function KbListPage() {
         filtered.length === 0 ? (
           <Card><Empty description="暂无知识库文章" /></Card>
         ) : (
-          <List
-            dataSource={filtered}
-            renderItem={(article) => (
-              <Card style={{ marginBottom: 12 }}>
+          <div>
+            {filtered.map((article) => (
+              <Card key={article.id} style={{ marginBottom: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
                   <BookOutlined style={{ fontSize: 20, color: article.sourceTicketId ? '#722ed1' : '#1677ff', marginTop: 2 }} />
                   <div style={{ flex: 1 }}>
@@ -64,8 +63,8 @@ export default function KbListPage() {
                   </div>
                 </div>
               </Card>
-            )}
-          />
+            ))}
+          </div>
         )
       )}
     </div>

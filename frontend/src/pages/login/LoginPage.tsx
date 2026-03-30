@@ -67,7 +67,7 @@ export default function LoginPage() {
           background: '#f9f0ff', border: '1px solid #d3adf7', borderRadius: 6,
           padding: 12, fontSize: 12, color: '#531dab',
         }}>
-          <Space direction="vertical" size={2}>
+          <Space orientation="vertical" size={2}>
             <Text strong style={{ color: '#722ed1', fontSize: 12 }}>✦ 演示账号</Text>
             <Text style={{ fontSize: 12 }}>客户: customer1 / demo123</Text>
             <Text style={{ fontSize: 12 }}>工程师: engineer1 / demo123</Text>

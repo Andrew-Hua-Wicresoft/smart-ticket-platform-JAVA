@@ -33,7 +33,7 @@ export default function AdminStatsPage() {
               title="总工单数"
               value={stats.totalTickets}
               prefix={<FileTextOutlined />}
-              valueStyle={{ fontSize: 30, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}
+              styles={{ content: { fontSize: 30, fontWeight: 600, fontVariantNumeric: 'tabular-nums' } }}
             />
           </Card>
         </Col>
@@ -44,7 +44,7 @@ export default function AdminStatsPage() {
               value={stats.deflectionRate}
               suffix="%"
               prefix={<CheckCircleOutlined />}
-              valueStyle={{ fontSize: 30, fontWeight: 600, color: '#722ed1', fontVariantNumeric: 'tabular-nums' }}
+              styles={{ content: { fontSize: 30, fontWeight: 600, color: '#722ed1', fontVariantNumeric: 'tabular-nums' } }}
             />
           </Card>
         </Col>
@@ -55,7 +55,7 @@ export default function AdminStatsPage() {
               value={stats.avgResolutionTimeHours != null ? stats.avgResolutionTimeHours.toFixed(1) : '-'}
               suffix="小时"
               prefix={<ClockCircleOutlined />}
-              valueStyle={{ fontSize: 30, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}
+              styles={{ content: { fontSize: 30, fontWeight: 600, fontVariantNumeric: 'tabular-nums' } }}
             />
           </Card>
         </Col>
@@ -66,7 +66,7 @@ export default function AdminStatsPage() {
               value={stats.kbPublishedCount}
               suffix={`/ ${stats.kbArticleCount} 总数`}
               prefix={<BookOutlined />}
-              valueStyle={{ fontSize: 30, fontWeight: 600, color: '#52c41a', fontVariantNumeric: 'tabular-nums' }}
+              styles={{ content: { fontSize: 30, fontWeight: 600, color: '#52c41a', fontVariantNumeric: 'tabular-nums' } }}
             />
           </Card>
         </Col>
@@ -87,7 +87,7 @@ export default function AdminStatsPage() {
                 <Statistic
                   title={labels[status] || status}
                   value={count}
-                  valueStyle={{ color: colors[status], fontVariantNumeric: 'tabular-nums' }}
+                  styles={{ content: { color: colors[status], fontVariantNumeric: 'tabular-nums' } }}
                 />
               </Col>
             );

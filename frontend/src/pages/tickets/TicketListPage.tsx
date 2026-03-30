@@ -123,23 +123,23 @@ export default function TicketListPage() {
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col span={6}>
           <Card size="small">
-            <Statistic title="总工单数" value={total} valueStyle={{ fontSize: 30, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }} />
+            <Statistic title="总工单数" value={total} styles={{ content: { fontSize: 30, fontWeight: 600, fontVariantNumeric: 'tabular-nums' } }} />
           </Card>
         </Col>
         <Col span={6}>
           <Card size="small">
-            <Statistic title="待处理" value={openCount} valueStyle={{ fontSize: 30, fontWeight: 600, color: '#1677ff', fontVariantNumeric: 'tabular-nums' }} />
+            <Statistic title="待处理" value={openCount} styles={{ content: { fontSize: 30, fontWeight: 600, color: '#1677ff', fontVariantNumeric: 'tabular-nums' } }} />
           </Card>
         </Col>
         <Col span={6}>
           <Card size="small">
-            <Statistic title="处理中" value={inProgressCount} valueStyle={{ fontSize: 30, fontWeight: 600, color: '#faad14', fontVariantNumeric: 'tabular-nums' }} />
+            <Statistic title="处理中" value={inProgressCount} styles={{ content: { fontSize: 30, fontWeight: 600, color: '#faad14', fontVariantNumeric: 'tabular-nums' } }} />
           </Card>
         </Col>
         <Col span={6}>
           <Card size="small">
             <Statistic title="已完成" value={total - openCount - inProgressCount}
-              valueStyle={{ fontSize: 30, fontWeight: 600, color: '#52c41a', fontVariantNumeric: 'tabular-nums' }} />
+              styles={{ content: { fontSize: 30, fontWeight: 600, color: '#52c41a', fontVariantNumeric: 'tabular-nums' } }} />
           </Card>
         </Col>
       </Row>
