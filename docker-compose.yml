@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: zhigong
+      POSTGRES_USER: zhigong
+      POSTGRES_PASSWORD: zhigong123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./src/main/resources/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./src/main/resources/data.sql:/docker-entrypoint-initdb.d/02-data.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zhigong"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  embedding:
+    build: ./embedding-sidecar
+    ports:
+      - "8100:8100"
+    environment:
+      EMBEDDING_MODEL: shibing624/text2vec-large-chinese
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8100/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  backend:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/zhigong
+      SPRING_DATASOURCE_USERNAME: zhigong
+      SPRING_DATASOURCE_PASSWORD: zhigong123
+      CLAUDE_API_KEY: ${CLAUDE_API_KEY:-}
+      EMBEDDING_SIDECAR_URL: http://embedding:8100
+    depends_on:
+      postgres:
+        condition: service_healthy
+      embedding:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

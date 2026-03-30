@@ -1,0 +1,44 @@
+spring:
+  application:
+    name: zhigong
+  datasource:
+    url: jdbc:postgresql://localhost:5432/zhigong
+    username: zhigong
+    password: zhigong123
+    driver-class-name: org.postgresql.Driver
+  sql:
+    init:
+      mode: always
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    defer-datasource-initialization: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 50MB
+
+jwt:
+  secret: ${JWT_SECRET:zhigong-ai-ticket-system-jwt-secret-key-2026-must-be-at-least-32-bytes}
+  expiration-ms: 86400000  # 24 hours
+
+claude:
+  api-key: ${CLAUDE_API_KEY:}
+  model: claude-sonnet-4-5-20250514
+
+embedding:
+  sidecar:
+    url: http://localhost:8100
+
+server:
+  port: 8080
+
+logging:
+  level:
+    com.ticket.zhigong: INFO
+    org.springframework.security: WARN

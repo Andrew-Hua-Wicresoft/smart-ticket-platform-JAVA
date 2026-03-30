@@ -1,0 +1,99 @@
+import { useEffect, useState } from 'react';
+import { Card, Typography, Statistic, Row, Col, Skeleton } from 'antd';
+import {
+  FileTextOutlined, CheckCircleOutlined, ClockCircleOutlined, BookOutlined,
+} from '@ant-design/icons';
+import { getAdminStats } from '../../api';
+import type { AdminStats } from '../../types';
+
+const { Title } = Typography;
+
+export default function AdminStatsPage() {
+  const [stats, setStats] = useState<AdminStats | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getAdminStats()
+      .then(({ data }) => setStats(data))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <Skeleton active paragraph={{ rows: 8 }} />;
+  if (!stats) return null;
+
+  return (
+    <div>
+      <Title level={4} style={{ marginBottom: 16 }}>数据分析</Title>
+
+      {/* Main KPIs */}
+      <Row gutter={16} style={{ marginBottom: 16 }}>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="总工单数"
+              value={stats.totalTickets}
+              prefix={<FileTextOutlined />}
+              valueStyle={{ fontSize: 30, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}
+            />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="AI 偏转率"
+              value={stats.deflectionRate}
+              suffix="%"
+              prefix={<CheckCircleOutlined />}
+              valueStyle={{ fontSize: 30, fontWeight: 600, color: '#722ed1', fontVariantNumeric: 'tabular-nums' }}
+            />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="平均解决时间"
+              value={stats.avgResolutionTimeHours != null ? stats.avgResolutionTimeHours.toFixed(1) : '-'}
+              suffix="小时"
+              prefix={<ClockCircleOutlined />}
+              valueStyle={{ fontSize: 30, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}
+            />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="知识库文章"
+              value={stats.kbPublishedCount}
+              suffix={`/ ${stats.kbArticleCount} 总数`}
+              prefix={<BookOutlined />}
+              valueStyle={{ fontSize: 30, fontWeight: 600, color: '#52c41a', fontVariantNumeric: 'tabular-nums' }}
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Status breakdown */}
+      <Card title="工单状态分布">
+        <Row gutter={16}>
+          {Object.entries(stats.ticketsByStatus).map(([status, count]) => {
+            const colors: Record<string, string> = {
+              OPEN: '#1677ff', IN_PROGRESS: '#faad14', RESOLVED: '#52c41a', CLOSED: '#8c8c8c',
+            };
+            const labels: Record<string, string> = {
+              OPEN: '待处理', IN_PROGRESS: '处理中', RESOLVED: '已解决', CLOSED: '已关闭',
+            };
+            return (
+              <Col span={6} key={status}>
+                <Statistic
+                  title={labels[status] || status}
+                  value={count}
+                  valueStyle={{ color: colors[status], fontVariantNumeric: 'tabular-nums' }}
+                />
+              </Col>
+            );
+          })}
+        </Row>
+      </Card>
+    </div>
+  );
+}
