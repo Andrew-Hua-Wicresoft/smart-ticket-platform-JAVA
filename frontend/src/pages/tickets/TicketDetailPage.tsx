@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  Card, Descriptions, Button, Typography, Space, Input,
+  Card, Descriptions, Tag, Button, Typography, Space, Input,
   message, Skeleton, Alert, Divider,
 } from 'antd';
 import { CheckCircleOutlined, UserAddOutlined } from '@ant-design/icons';
