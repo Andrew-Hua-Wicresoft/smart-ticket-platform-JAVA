@@ -4,7 +4,7 @@
 - **What this is:** AI-powered IT support ticket system that auto-suggests solutions, learns from resolutions, and builds a self-improving knowledge base
 - **Who it's for:** Internal users at a Chinese company. Three roles: customers (submit tickets), engineers (resolve with AI assistance), admins (analytics)
 - **Space/industry:** Chinese enterprise IT helpdesk (peers: Feishu Helpdesk, Udesk, Meiqia, DingTalk workorder)
-- **Project type:** Internal workspace tool (React 18 + Ant Design 5 + TypeScript)
+- **Project type:** Internal workspace tool (React 18 + Ant Design 6 + TypeScript)
 
 ## Aesthetic Direction
 - **Direction:** Industrial/Utilitarian
@@ -30,7 +30,7 @@
 
 ## Color
 - **Approach:** Restrained with one intentional accent layer
-- **Primary:** `#1677ff` — Ant Design 5 default blue. Brand actions: buttons, links, active states, selected items.
+- **Primary:** `#1677ff` — Ant Design default blue. Brand actions: buttons, links, active states, selected items.
 - **Primary hover:** `#4096ff`
 - **Primary background:** `#e6f4ff` — selected row highlights, info badges
 - **AI Accent:** `#722ed1` — reserved ONLY for AI-generated content. Suggestions, confidence scores, analysis badges, generated KB articles. This is the product's visual differentiator.
@@ -165,4 +165,4 @@
 | 2026-03-30 | Comfortable density (not minimal) | Engineers need 15-20 tickets visible. Feishu's airy spacing wastes screen real estate for power users |
 | 2026-03-30 | Dark sidebar (#001529) | Ant Design Pro default. Creates clear visual boundary between navigation and content |
 | 2026-03-30 | No dark mode in v1 | Deferred to v2. CSS custom properties are in place for easy implementation |
-| 2026-03-30 | Ant Design 5 defaults as baseline | No custom design tokens in v1. Framework defaults are battle-tested for Chinese enterprise |
+| 2026-03-30 | Ant Design 6 defaults as baseline | No custom design tokens in v1. Framework defaults are battle-tested for Chinese enterprise |

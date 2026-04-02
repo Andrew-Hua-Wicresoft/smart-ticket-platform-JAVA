@@ -32,14 +32,14 @@ Built with Spring Boot 3.4 + React 18 + PostgreSQL/pgvector + Claude API.
 │  TypeScript │     │                  │     │                 │
 │  Vite       │     │  Claude API ─────│────▶│ ai_interactions │
 │  port 5173  │     │  (5 call sites)  │     │ knowledge_base  │
-│             │     │  port 8080       │     │ vector(1024)    │
+│             │     │  port 8080       │     │ vector(384)     │
 └─────────────┘     └────────┬─────────┘     └─────────────────┘
                              │
                     ┌────────▼─────────┐
                     │ Embedding Sidecar│
                     │ FastAPI + Python │
-                    │ text2vec-large-  │
-                    │ chinese (1024d)  │
+                    │ all-MiniLM-L6-v2 │
+                    │ (384d)           │
                     │ port 8100        │
                     └──────────────────┘
 ```
@@ -56,7 +56,7 @@ Built with Spring Boot 3.4 + React 18 + PostgreSQL/pgvector + Claude API.
 
 ### Vector Search
 
-Knowledge base articles are embedded using `text2vec-large-chinese` (1024 dimensions) via a Python FastAPI sidecar. Similarity search uses pgvector's HNSW index with cosine distance. Minimum similarity threshold: 0.3.
+Knowledge base articles are embedded using `all-MiniLM-L6-v2` (384 dimensions) via a Python FastAPI sidecar. Similarity search uses pgvector's HNSW index with cosine distance. Minimum similarity threshold: 0.3.
 
 ## Quick Start
 
@@ -66,7 +66,7 @@ Knowledge base articles are embedded using `text2vec-large-chinese` (1024 dimens
 - Node.js 18+ and npm
 - Docker (for PostgreSQL with pgvector)
 - Optional: Claude API key for AI features
-- Optional: Python 3.10+ for embedding sidecar
+- Optional: Python 3.9+ for embedding sidecar
 
 ### 1. Start PostgreSQL
 
@@ -111,7 +111,7 @@ pip install -r requirements.txt
 uvicorn main:app --host 0.0.0.0 --port 8100
 ```
 
-First run downloads the `text2vec-large-chinese` model (~1.3GB). Enables AI-powered KB search and ticket deflection.
+First run downloads the `all-MiniLM-L6-v2` model (~90MB). Enables AI-powered KB search and ticket deflection.
 
 ### Docker Compose (all services)
 
@@ -164,8 +164,8 @@ Starts PostgreSQL + embedding sidecar + backend. Add frontend separately with `n
 |-------|-----------|
 | Frontend | React 18, TypeScript, Ant Design 6, Vite, Zustand, Axios, dayjs |
 | Backend | Spring Boot 3.4, Java 17, Spring Security, JWT, JPA/Hibernate |
-| Database | PostgreSQL 16 + pgvector (HNSW index, vector(1024)) |
-| AI | Claude API (claude-sonnet-4-5-20250514), text2vec-large-chinese |
+| Database | PostgreSQL 16 + pgvector (HNSW index, vector(384)) |
+| AI | Claude API (claude-sonnet-4-20250514), all-MiniLM-L6-v2 |
 | Embedding | Python FastAPI sidecar with sentence-transformers |
 | Infrastructure | Docker Compose, Maven |
 

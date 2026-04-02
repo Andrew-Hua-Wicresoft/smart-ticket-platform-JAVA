@@ -30,7 +30,7 @@ public class ClaudeApiService {
 
     public ClaudeApiService(
             @Value("${claude.api-key:}") String apiKey,
-            @Value("${claude.model:claude-sonnet-4-5-20250514}") String model,
+            @Value("${claude.model:claude-sonnet-4-20250514}") String model,
             AiInteractionRepository aiInteractionRepository) {
         this.restTemplate = new RestTemplate();
         this.apiKey = apiKey;

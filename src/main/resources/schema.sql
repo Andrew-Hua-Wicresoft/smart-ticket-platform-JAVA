@@ -38,12 +38,12 @@ CREATE TABLE IF NOT EXISTS ticket_images (
     image_url VARCHAR(500) NOT NULL
 );
 
--- Knowledge base with vector embeddings (1024d for text2vec-large-chinese)
+-- Knowledge base with vector embeddings (384d for all-MiniLM-L6-v2)
 CREATE TABLE IF NOT EXISTS knowledge_base (
     id BIGSERIAL PRIMARY KEY,
     title VARCHAR(200) NOT NULL,
     content TEXT NOT NULL,
-    content_embedding vector(1024),
+    content_embedding vector(384),
     status VARCHAR(20) NOT NULL DEFAULT 'DRAFT' CHECK (status IN ('DRAFT', 'PUBLISHED')),
     source_ticket_id BIGINT,
     created_by BIGINT REFERENCES users(id),

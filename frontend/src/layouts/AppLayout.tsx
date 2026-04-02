@@ -74,10 +74,12 @@ export default function AppLayout() {
     ],
   };
 
-  // Find active key
-  const selectedKey = filteredItems.find((item) =>
-    location.pathname === item.key || location.pathname.startsWith(item.key + '/')
-  )?.key || '';
+  // Find active key — match longest (most specific) path first
+  const selectedKey = [...filteredItems]
+    .sort((a, b) => b.key.length - a.key.length)
+    .find((item) =>
+      location.pathname === item.key || location.pathname.startsWith(item.key + '/')
+    )?.key || '';
 
   return (
     <Layout style={{ minHeight: '100vh' }}>

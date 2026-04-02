@@ -1,6 +1,6 @@
 """
 Embedding sidecar for 智能工单系统.
-FastAPI service that generates text embeddings using text2vec-large-chinese (1024d).
+FastAPI service that generates text embeddings using all-MiniLM-L6-v2 (384d).
 """
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(title="智能工单 Embedding Sidecar")
 
 # Load model at startup
-MODEL_NAME = os.getenv("EMBEDDING_MODEL", "shibing624/text2vec-large-chinese")
+MODEL_NAME = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
 CACHE_DIR = os.getenv("MODEL_CACHE_DIR", "./model-cache")
 
 logger.info(f"Loading embedding model: {MODEL_NAME}")
