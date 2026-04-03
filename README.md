@@ -82,15 +82,18 @@ This starts PostgreSQL 16 with pgvector, creates the `zhigong` database, and run
 # Set Java 17 if not default
 export JAVA_HOME=/opt/homebrew/opt/openjdk@17
 
-# Run Spring Boot
-mvn spring-boot:run
+# Generate a JWT secret (required)
+export JWT_SECRET=$(openssl rand -base64 48)
+
+# Load seed data on first run
+SQL_INIT_MODE=always mvn spring-boot:run
 ```
 
-Backend starts on http://localhost:8080.
+Backend starts on http://localhost:8080. After first run, drop `SQL_INIT_MODE=always` so seed data doesn't re-insert.
 
 To enable AI features, set the Claude API key:
 ```bash
-CLAUDE_API_KEY=sk-ant-... mvn spring-boot:run
+CLAUDE_API_KEY=sk-ant-... JWT_SECRET=$JWT_SECRET mvn spring-boot:run
 ```
 
 ### 3. Start the Frontend
