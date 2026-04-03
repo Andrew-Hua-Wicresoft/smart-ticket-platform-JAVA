@@ -166,7 +166,7 @@ Starts PostgreSQL + embedding sidecar + backend. Add frontend separately with `n
 | Layer | Technology |
 |-------|-----------|
 | Frontend | React 18, TypeScript, Ant Design 6, Vite, Zustand, Axios, dayjs |
-| Backend | Spring Boot 3.4, Java 17, Spring Security, JWT, JPA/Hibernate |
+| Backend | Spring Boot 3.4, Java 17, Spring Security, JWT, JPA/Hibernate, jsoup |
 | Database | PostgreSQL 16 + pgvector (HNSW index, vector(384)) |
 | AI | Claude API (claude-sonnet-4-20250514), all-MiniLM-L6-v2 |
 | Embedding | Python FastAPI sidecar with sentence-transformers |
@@ -185,12 +185,15 @@ Key rules:
 
 ## Security
 
-- JWT authentication with HS512 signing (24h expiry)
+- JWT authentication with HS512 signing (24h expiry, startup validation requires `JWT_SECRET`)
 - BCrypt password hashing
-- Role-based access control (CUSTOMER, ENGINEER, ADMIN)
+- Role-based access control (CUSTOMER, ENGINEER, ADMIN) with frontend route guards
 - Atomic ticket assignment preventing race conditions
-- LLM output sanitization before database storage (XSS/injection prevention)
-- Rate limiting on AI calls (10/user/minute via Guava RateLimiter)
+- LLM output sanitization via jsoup (strips all HTML before database storage)
+- Input validation via typed DTOs with `@NotBlank`/`@Size` constraints on all endpoints
+- Rate limiting: AI calls (10/user/minute), login attempts (5/IP/minute) via Guava RateLimiter
+- Database credentials externalized via environment variables (no hardcoded defaults)
+- Structured logging across all critical paths: auth, exceptions, ticket operations, rate limiting
 - AI interaction logging for audit trail
 
 ## Project Structure
@@ -199,25 +202,27 @@ Key rules:
 ├── src/main/java/com/ticket/zhigong/
 │   ├── config/          # SecurityConfig
 │   ├── controller/      # REST controllers (6)
-│   ├── dto/             # Request/response DTOs (12)
+│   ├── dto/             # Request/response DTOs (15)
 │   ├── entity/          # JPA entities (5)
 │   ├── enums/           # Status, Priority, Role enums
 │   ├── exception/       # Global exception handler
 │   ├── repository/      # Spring Data JPA repositories (5)
 │   ├── security/        # JWT filter, util, SecurityUtils
-│   └── service/         # Business logic services (8)
+│   └── service/         # Business logic services (9)
 ├── src/main/resources/
 │   ├── schema.sql       # Database schema (6 tables + indexes)
 │   ├── data.sql         # Seed data (users, KB articles, tickets)
 │   └── application.yml  # Configuration
 ├── frontend/src/
 │   ├── api/             # Axios client + API functions
+│   ├── components/      # Shared components (StatusDot)
 │   ├── hooks/           # useDebounce
 │   ├── layouts/         # AppLayout with sidebar
 │   ├── pages/           # Login, Tickets, KB, Admin (8 pages)
 │   ├── stores/          # Zustand auth store
 │   └── types.ts         # TypeScript interfaces
 ├── embedding-sidecar/   # Python FastAPI embedding service
+├── .env.example         # Template for required environment variables
 ├── docker-compose.yml   # PostgreSQL + sidecar + backend
 └── DESIGN.md            # Design system specification
 ```
