@@ -4,6 +4,7 @@ import { Alert, Card, Table, Button, Typography, Statistic, Row, Col, Skeleton }
 import { ReloadOutlined } from '@ant-design/icons';
 import { listTickets } from '../../api';
 import StatusDot from '../../components/StatusDot';
+import PriorityBadge from '../../components/PriorityBadge';
 import type { TicketResponse, TicketStatus, TicketPriority } from '../../types';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -13,12 +14,6 @@ dayjs.extend(relativeTime);
 dayjs.locale('zh-cn');
 
 const { Title } = Typography;
-
-const priorityConfig: Record<TicketPriority, { color: string; label: string }> = {
-  HIGH: { color: '#ff4d4f', label: '高' },
-  MEDIUM: { color: '#faad14', label: '中' },
-  LOW: { color: '#52c41a', label: '低' },
-};
 
 export default function TicketListPage() {
   const [tickets, setTickets] = useState<TicketResponse[]>([]);
@@ -54,16 +49,7 @@ export default function TicketListPage() {
       dataIndex: 'priority',
       key: 'priority',
       width: 70,
-      render: (p: TicketPriority) => (
-        <div style={{
-          width: 24, height: 24, borderRadius: 4,
-          background: priorityConfig[p].color,
-          color: '#fff', fontSize: 12, fontWeight: 600,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          {priorityConfig[p].label}
-        </div>
-      ),
+      render: (p: TicketPriority) => <PriorityBadge priority={p} />,
     },
     {
       title: '工单标题',

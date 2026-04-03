@@ -21,6 +21,12 @@ body {
 }
 
 /* Ant Design overrides for design system compliance */
+.ant-table-thead > tr > th {
+  font-size: 12px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
 .ant-table-row {
   transition: background-color 0.15s ease;
 }

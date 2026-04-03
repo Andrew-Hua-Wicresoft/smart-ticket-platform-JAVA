@@ -33,6 +33,16 @@ const allMenuItems: MenuItem[] = [
   { key: '/admin/stats', icon: <BarChartOutlined />, label: '数据分析', group: '系统', roles: ['ADMIN'] },
 ];
 
+const breadcrumbLabels: Record<string, string> = {
+  tickets: '工单队列',
+  'my-tickets': '我的工单',
+  create: '提交工单',
+  kb: '知识库',
+  drafts: '待审核文章',
+  admin: '系统',
+  stats: '数据分析',
+};
+
 export default function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -99,6 +109,7 @@ export default function AppLayout() {
           }}>智</div>
           <span style={{ color: '#fff', fontSize: 14, fontWeight: 500 }}>智能工单</span>
         </div>
+        <style>{`.ant-menu-item-group-title { font-size: 11px !important; text-transform: uppercase; opacity: 0.3 !important; letter-spacing: 0.5px; }`}</style>
         <Menu
           theme="dark"
           mode="inline"
@@ -120,7 +131,9 @@ export default function AppLayout() {
           lineHeight: '48px',
         }}>
           <Text type="secondary" style={{ fontSize: 14 }}>
-            {location.pathname.split('/').filter(Boolean).join(' / ')}
+            {location.pathname.split('/').filter(Boolean).map((seg) =>
+              breadcrumbLabels[seg] || (/^\d+$/.test(seg) ? `#${seg}` : seg)
+            ).join(' / ')}
           </Text>
           <Dropdown menu={userMenu} placement="bottomRight">
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>

@@ -99,6 +99,7 @@ export default function KbDraftsPage() {
         {error ? <Alert type="error" message={error} showIcon style={{ marginBottom: 16 }} /> : null}
         {loading ? <Skeleton active /> : (
           <Table dataSource={articles} columns={columns} rowKey="id" size="middle"
+            locale={{ emptyText: '暂无待审核文章' }}
             pagination={{ total, showTotal: (t) => `共 ${t} 篇待审核` }}
             expandable={{
               expandedRowRender: (record) => (

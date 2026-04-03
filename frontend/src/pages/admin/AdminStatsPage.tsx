@@ -4,7 +4,8 @@ import {
   FileTextOutlined, CheckCircleOutlined, ClockCircleOutlined, BookOutlined,
 } from '@ant-design/icons';
 import { getAdminStats } from '../../api';
-import type { AdminStats } from '../../types';
+import { statusConfig } from '../../components/StatusDot';
+import type { AdminStats, TicketStatus } from '../../types';
 
 const { Title } = Typography;
 
@@ -79,18 +80,13 @@ export default function AdminStatsPage() {
       <Card title="工单状态分布">
         <Row gutter={16}>
           {Object.entries(stats.ticketsByStatus).map(([status, count]) => {
-            const colors: Record<string, string> = {
-              OPEN: '#1677ff', IN_PROGRESS: '#faad14', RESOLVED: '#52c41a', CLOSED: '#8c8c8c',
-            };
-            const labels: Record<string, string> = {
-              OPEN: '待处理', IN_PROGRESS: '处理中', RESOLVED: '已解决', CLOSED: '已关闭',
-            };
+            const cfg = statusConfig[status as TicketStatus];
             return (
               <Col span={6} key={status}>
                 <Statistic
-                  title={labels[status] || status}
+                  title={cfg?.label || status}
                   value={count}
-                  styles={{ content: { color: colors[status], fontVariantNumeric: 'tabular-nums' } }}
+                  styles={{ content: { color: cfg?.dotColor, fontVariantNumeric: 'tabular-nums' } }}
                 />
               </Col>
             );
