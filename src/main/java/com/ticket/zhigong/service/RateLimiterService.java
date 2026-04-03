@@ -2,12 +2,16 @@ package com.ticket.zhigong.service;
 
 import com.google.common.util.concurrent.RateLimiter;
 import com.ticket.zhigong.exception.RateLimitException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class RateLimiterService {
+
+    private static final Logger log = LoggerFactory.getLogger(RateLimiterService.class);
 
     // 10 AI calls per user per minute
     private static final double AI_PERMITS_PER_SECOND = 10.0 / 60.0;
@@ -22,6 +26,7 @@ public class RateLimiterService {
                 id -> RateLimiter.create(AI_PERMITS_PER_SECOND));
 
         if (!limiter.tryAcquire()) {
+            log.warn("AI rate limit hit [userId={}]", userId);
             throw new RateLimitException("AI调用过于频繁，请稍后再试（限制：每分钟10次）");
         }
     }
@@ -31,6 +36,7 @@ public class RateLimiterService {
                 ip -> RateLimiter.create(LOGIN_PERMITS_PER_SECOND));
 
         if (!limiter.tryAcquire()) {
+            log.warn("Login rate limit hit [ip={}]", ipAddress);
             throw new RateLimitException("登录尝试过于频繁，请稍后再试（限制：每分钟5次）");
         }
     }

@@ -12,6 +12,8 @@ import com.ticket.zhigong.exception.BusinessException;
 import com.ticket.zhigong.repository.TicketRepository;
 import com.ticket.zhigong.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -24,6 +26,8 @@ import java.util.concurrent.CompletableFuture;
 
 @Service
 public class TicketService {
+
+    private static final Logger log = LoggerFactory.getLogger(TicketService.class);
 
     private final TicketRepository ticketRepository;
     private final UserRepository userRepository;
@@ -73,6 +77,7 @@ public class TicketService {
         }
 
         ticket = ticketRepository.save(ticket);
+        log.info("Ticket created [id={}, userId={}, priority={}]", ticket.getId(), userId, ticket.getPriority());
         return TicketResponse.fromEntity(ticket);
     }
 
@@ -129,6 +134,7 @@ public class TicketService {
 
         // Refresh entity after atomic update
         Ticket ticket = ticketRepository.findById(ticketId).orElseThrow();
+        log.info("Ticket assigned [id={}, engineerId={}]", ticketId, engineerId);
         return TicketResponse.fromEntity(ticket);
     }
 
@@ -158,6 +164,7 @@ public class TicketService {
         final String resolutionNotes = request.getResolutionNotes();
 
         ticket = ticketRepository.save(ticket);
+        log.info("Ticket resolved [id={}, engineerId={}]", ticketId, engineerId);
 
         // Async: generate KB article from resolution notes
         final Long savedTicketId = ticket.getId();
