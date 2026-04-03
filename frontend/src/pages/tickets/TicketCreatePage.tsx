@@ -157,9 +157,8 @@ export default function TicketCreatePage() {
                 </div>
               ))}
               <Button
-                type="primary"
                 block
-                style={{ marginTop: 12 }}
+                style={{ marginTop: 12, background: '#722ed1', borderColor: '#722ed1', color: '#fff' }}
                 onClick={() => suggestions[0] && handleDeflection(suggestions[0])}
               >
                 问题已解决，无需提交

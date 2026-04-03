@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Card, Table, Button, Typography, message, Modal, Input, Space, Skeleton } from 'antd';
+import { Alert, Card, Table, Button, Typography, message, Modal, Input, Space, Skeleton } from 'antd';
 import { CheckOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { listDraftArticles, publishArticle, updateArticle, deleteArticle } from '../../api';
 import type { KbArticle } from '../../types';
@@ -11,6 +11,7 @@ const { TextArea } = Input;
 export default function KbDraftsPage() {
   const [articles, setArticles] = useState<KbArticle[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
   const [editModal, setEditModal] = useState<KbArticle | null>(null);
   const [editTitle, setEditTitle] = useState('');
@@ -18,10 +19,13 @@ export default function KbDraftsPage() {
 
   const fetchDrafts = async () => {
     setLoading(true);
+    setError(null);
     try {
       const { data } = await listDraftArticles();
       setArticles(data.content);
       setTotal(data.totalElements);
+    } catch {
+      setError('草稿列表加载失败，请稍后重试');
     } finally {
       setLoading(false);
     }
@@ -92,6 +96,7 @@ export default function KbDraftsPage() {
     <div>
       <Title level={4} style={{ marginBottom: 16 }}>待审核文章</Title>
       <Card>
+        {error ? <Alert type="error" message={error} showIcon style={{ marginBottom: 16 }} /> : null}
         {loading ? <Skeleton active /> : (
           <Table dataSource={articles} columns={columns} rowKey="id" size="middle"
             pagination={{ total, showTotal: (t) => `共 ${t} 篇待审核` }}

@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Table, Button, Typography, Statistic, Row, Col, Skeleton } from 'antd';
+import { Alert, Card, Table, Button, Typography, Statistic, Row, Col, Skeleton } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import { listTickets } from '../../api';
+import StatusDot from '../../components/StatusDot';
 import type { TicketResponse, TicketStatus, TicketPriority } from '../../types';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -19,36 +20,23 @@ const priorityConfig: Record<TicketPriority, { color: string; label: string }> =
   LOW: { color: '#52c41a', label: '低' },
 };
 
-const statusConfig: Record<TicketStatus, { dotColor: string; label: string }> = {
-  OPEN: { dotColor: '#1677ff', label: '待处理' },
-  IN_PROGRESS: { dotColor: '#faad14', label: '处理中' },
-  RESOLVED: { dotColor: '#52c41a', label: '已解决' },
-  CLOSED: { dotColor: '#8c8c8c', label: '已关闭' },
-};
-
-function StatusDot({ status }: { status: TicketStatus }) {
-  const cfg = statusConfig[status];
-  return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-      <span style={{ width: 6, height: 6, borderRadius: '50%', background: cfg.dotColor, flexShrink: 0 }} />
-      <span style={{ fontSize: 14 }}>{cfg.label}</span>
-    </span>
-  );
-}
-
 export default function TicketListPage() {
   const [tickets, setTickets] = useState<TicketResponse[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const fetchTickets = async (p = 0) => {
     setLoading(true);
+    setError(null);
     try {
       const { data } = await listTickets(p);
       setTickets(data.content);
       setTotal(data.totalElements);
+    } catch {
+      setError('工单列表加载失败，请稍后重试');
     } finally {
       setLoading(false);
     }
@@ -145,6 +133,7 @@ export default function TicketListPage() {
       </Row>
 
       <Card>
+        {error ? <Alert type="error" message={error} showIcon style={{ marginBottom: 16 }} /> : null}
         {loading ? <Skeleton active paragraph={{ rows: 8 }} /> : (
           <Table
             dataSource={tickets}

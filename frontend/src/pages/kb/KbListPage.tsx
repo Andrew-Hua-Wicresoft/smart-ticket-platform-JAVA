@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Card, Typography, Input, Empty, Skeleton } from 'antd';
+import { Alert, Card, Typography, Input, Empty, Skeleton } from 'antd';
 import { BookOutlined, SearchOutlined } from '@ant-design/icons';
 import { listPublishedArticles } from '../../api';
 import type { KbArticle } from '../../types';
@@ -10,11 +10,13 @@ const { Title, Text, Paragraph } = Typography;
 export default function KbListPage() {
   const [articles, setArticles] = useState<KbArticle[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
 
   useEffect(() => {
     listPublishedArticles(0, 100)
       .then(({ data }) => setArticles(data.content))
+      .catch(() => setError('知识库加载失败，请稍后重试'))
       .finally(() => setLoading(false));
   }, []);
 
@@ -38,6 +40,7 @@ export default function KbListPage() {
         />
       </div>
 
+      {error ? <Alert type="error" message={error} showIcon style={{ marginBottom: 16 }} /> : null}
       {loading ? <Skeleton active paragraph={{ rows: 6 }} /> : (
         filtered.length === 0 ? (
           <Card><Empty description="暂无知识库文章" /></Card>

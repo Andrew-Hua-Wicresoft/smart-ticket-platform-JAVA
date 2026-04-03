@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Table, Typography, Empty, Skeleton } from 'antd';
+import { Alert, Card, Table, Typography, Empty, Skeleton } from 'antd';
 import { listTickets } from '../../api';
+import StatusDot from '../../components/StatusDot';
 import type { TicketResponse, TicketStatus, TicketPriority } from '../../types';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -18,37 +19,23 @@ const priorityConfig: Record<TicketPriority, { color: string; label: string }> =
   LOW: { color: '#52c41a', label: '低' },
 };
 
-const statusConfig: Record<TicketStatus, { dotColor: string; label: string }> = {
-  OPEN: { dotColor: '#1677ff', label: '待处理' },
-  IN_PROGRESS: { dotColor: '#faad14', label: '处理中' },
-  RESOLVED: { dotColor: '#52c41a', label: '已解决' },
-  CLOSED: { dotColor: '#8c8c8c', label: '已关闭' },
-};
-
-function StatusDot({ status }: { status: TicketStatus }) {
-  const cfg = statusConfig[status];
-  return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-      <span style={{ width: 6, height: 6, borderRadius: '50%', background: cfg.dotColor, flexShrink: 0 }} />
-      <span style={{ fontSize: 14 }}>{cfg.label}</span>
-    </span>
-  );
-}
-
 export default function MyTicketsPage() {
   const [tickets, setTickets] = useState<TicketResponse[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     setLoading(true);
+    setError(null);
     listTickets(page)
       .then(({ data }) => {
         setTickets(data.content);
         setTotal(data.totalElements);
       })
+      .catch(() => setError('工单列表加载失败，请稍后重试'))
       .finally(() => setLoading(false));
   }, [page]);
 
@@ -110,6 +97,7 @@ export default function MyTicketsPage() {
     <div>
       <Title level={4} style={{ marginBottom: 16 }}>我的工单</Title>
       <Card>
+        {error ? <Alert type="error" message={error} showIcon style={{ marginBottom: 16 }} /> : null}
         {loading ? <Skeleton active paragraph={{ rows: 6 }} /> : (
           tickets.length === 0 ? (
             <Empty description="暂无工单，去提交一个吧" />

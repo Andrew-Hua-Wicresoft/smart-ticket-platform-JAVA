@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Card, Typography, Statistic, Row, Col, Skeleton } from 'antd';
+import { Alert, Card, Typography, Statistic, Row, Col, Skeleton } from 'antd';
 import {
   FileTextOutlined, CheckCircleOutlined, ClockCircleOutlined, BookOutlined,
 } from '@ant-design/icons';
@@ -11,14 +11,17 @@ const { Title } = Typography;
 export default function AdminStatsPage() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     getAdminStats()
       .then(({ data }) => setStats(data))
+      .catch(() => setError('统计数据加载失败，请稍后重试'))
       .finally(() => setLoading(false));
   }, []);
 
   if (loading) return <Skeleton active paragraph={{ rows: 8 }} />;
+  if (error) return <Alert type="error" message={error} showIcon />;
   if (!stats) return null;
 
   return (

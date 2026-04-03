@@ -7,6 +7,7 @@ import {
 import { CheckCircleOutlined, UserAddOutlined } from '@ant-design/icons';
 import { getTicket, assignTicket, resolveTicket, aiSuggest } from '../../api';
 import { useAuthStore } from '../../stores/authStore';
+import StatusDot from '../../components/StatusDot';
 import type { TicketResponse, TicketStatus, TicketPriority } from '../../types';
 import dayjs from 'dayjs';
 
@@ -18,23 +19,6 @@ const priorityConfig: Record<TicketPriority, { color: string; label: string }> =
   MEDIUM: { color: 'orange', label: '中优先级' },
   LOW: { color: 'green', label: '低优先级' },
 };
-
-const statusConfig: Record<TicketStatus, { dotColor: string; label: string }> = {
-  OPEN: { dotColor: '#1677ff', label: '待处理' },
-  IN_PROGRESS: { dotColor: '#faad14', label: '处理中' },
-  RESOLVED: { dotColor: '#52c41a', label: '已解决' },
-  CLOSED: { dotColor: '#8c8c8c', label: '已关闭' },
-};
-
-function StatusDot({ status }: { status: TicketStatus }) {
-  const cfg = statusConfig[status];
-  return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-      <span style={{ width: 6, height: 6, borderRadius: '50%', background: cfg.dotColor, flexShrink: 0 }} />
-      <span style={{ fontSize: 14 }}>{cfg.label}</span>
-    </span>
-  );
-}
 
 export default function TicketDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -229,8 +213,8 @@ export default function TicketDetailPage() {
               </div>
             ) : (
               <Button
-                type="primary"
                 block
+                style={{ background: '#722ed1', borderColor: '#722ed1', color: '#fff' }}
                 onClick={handleGetSuggestion}
                 loading={suggestLoading}
               >
