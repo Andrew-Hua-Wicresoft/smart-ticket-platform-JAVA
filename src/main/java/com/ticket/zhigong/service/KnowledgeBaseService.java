@@ -32,17 +32,20 @@ public class KnowledgeBaseService {
     private final UserRepository userRepository;
     private final EmbeddingService embeddingService;
     private final ClaudeApiService claudeApiService;
+    private final SanitizationService sanitizationService;
     private final EntityManager entityManager;
 
     public KnowledgeBaseService(KnowledgeBaseRepository kbRepository,
                                  UserRepository userRepository,
                                  EmbeddingService embeddingService,
                                  ClaudeApiService claudeApiService,
+                                 SanitizationService sanitizationService,
                                  EntityManager entityManager) {
         this.kbRepository = kbRepository;
         this.userRepository = userRepository;
         this.embeddingService = embeddingService;
         this.claudeApiService = claudeApiService;
+        this.sanitizationService = sanitizationService;
         this.entityManager = entityManager;
     }
 
@@ -105,10 +108,10 @@ public class KnowledgeBaseService {
             }
 
             // Sanitize LLM output: strip HTML/script tags to prevent stored XSS/prompt injection
-            articleContent = sanitizeLlmOutput(articleContent);
+            articleContent = sanitizationService.sanitize(articleContent);
 
             KnowledgeBase kb = new KnowledgeBase();
-            kb.setTitle(sanitizeLlmOutput(title));
+            kb.setTitle(sanitizationService.sanitize(title));
             kb.setContent(articleContent);
             kb.setStatus(KbArticleStatus.DRAFT);
             kb.setSourceTicketId(ticketId);
@@ -170,8 +173,8 @@ public class KnowledgeBaseService {
         KnowledgeBase kb = kbRepository.findById(articleId)
                 .orElseThrow(() -> new EntityNotFoundException("知识库文章 #" + articleId + " 不存在"));
 
-        kb.setTitle(title);
-        kb.setContent(content);
+        kb.setTitle(sanitizationService.sanitize(title));
+        kb.setContent(sanitizationService.sanitize(content));
         kb = kbRepository.save(kb);
 
         // Re-embed with updated content
@@ -186,21 +189,6 @@ public class KnowledgeBaseService {
             throw new EntityNotFoundException("知识库文章 #" + articleId + " 不存在");
         }
         kbRepository.deleteById(articleId);
-    }
-
-    /**
-     * Sanitize LLM-generated text before storing in KB.
-     * Strips HTML/script tags to prevent stored XSS and prompt injection.
-     */
-    private String sanitizeLlmOutput(String text) {
-        if (text == null) return null;
-        // Remove HTML tags (including script, style, iframe)
-        String sanitized = text.replaceAll("<[^>]*>", "");
-        // Remove common prompt injection patterns
-        sanitized = sanitized.replaceAll("(?i)<script[^>]*>.*?</script>", "");
-        // Trim excessive whitespace
-        sanitized = sanitized.replaceAll("\\n{3,}", "\n\n");
-        return sanitized.trim();
     }
 
     private String vectorToString(float[] embedding) {

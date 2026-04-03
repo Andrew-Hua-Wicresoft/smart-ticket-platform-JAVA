@@ -4,7 +4,6 @@ import com.ticket.zhigong.dto.AiSearchResult;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -17,13 +16,16 @@ public class AiService {
     private final ClaudeApiService claudeApiService;
     private final KnowledgeBaseService kbService;
     private final RateLimiterService rateLimiterService;
+    private final SanitizationService sanitizationService;
 
     public AiService(ClaudeApiService claudeApiService,
                      KnowledgeBaseService kbService,
-                     RateLimiterService rateLimiterService) {
+                     RateLimiterService rateLimiterService,
+                     SanitizationService sanitizationService) {
         this.claudeApiService = claudeApiService;
         this.kbService = kbService;
         this.rateLimiterService = rateLimiterService;
+        this.sanitizationService = sanitizationService;
     }
 
     /**
@@ -39,12 +41,12 @@ public class AiService {
      */
     public String refine(String title, String description, Long userId) {
         rateLimiterService.checkRateLimit(userId);
-        return claudeApiService.call(
+        return sanitizationService.sanitize(claudeApiService.call(
                 "你是一个IT支持系统的智能助手。用户提交了一个工单，但描述可能不够详细。" +
                 "请生成2-3个针对性的问题来帮助用户补充信息。" +
                 "格式：每个问题一行，用数字编号。使用简洁的中文。",
                 "工单标题: " + title + "\n问题描述: " + description,
-                "REFINE", userId, null);
+                "REFINE", userId, null));
     }
 
     /**
@@ -81,7 +83,7 @@ public class AiService {
         });
 
         try {
-            return suggestionFuture.get();
+            return sanitizationService.sanitize(suggestionFuture.get());
         } catch (Exception e) {
             return null;
         }

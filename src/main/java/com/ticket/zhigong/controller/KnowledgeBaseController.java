@@ -1,16 +1,16 @@
 package com.ticket.zhigong.controller;
 
 import com.ticket.zhigong.dto.KbArticleResponse;
+import com.ticket.zhigong.dto.KbArticleUpdateRequest;
 import com.ticket.zhigong.enums.KbArticleStatus;
 import com.ticket.zhigong.service.KnowledgeBaseService;
+import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/kb")
@@ -41,10 +41,9 @@ public class KnowledgeBaseController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ENGINEER') or hasRole('ADMIN')")
-    public ResponseEntity<KbArticleResponse> update(@PathVariable Long id, @RequestBody Map<String, String> body) {
-        String title = body.get("title");
-        String content = body.get("content");
-        return ResponseEntity.ok(kbService.updateArticle(id, title, content));
+    public ResponseEntity<KbArticleResponse> update(@PathVariable Long id,
+                                                     @Valid @RequestBody KbArticleUpdateRequest request) {
+        return ResponseEntity.ok(kbService.updateArticle(id, request.getTitle(), request.getContent()));
     }
 
     @DeleteMapping("/{id}")

@@ -1,7 +1,9 @@
 package com.ticket.zhigong.controller;
 
+import com.ticket.zhigong.dto.AiRefineRequest;
 import com.ticket.zhigong.dto.AiSearchRequest;
 import com.ticket.zhigong.dto.AiSearchResult;
+import com.ticket.zhigong.dto.AiSuggestRequest;
 import com.ticket.zhigong.security.SecurityUtils;
 import com.ticket.zhigong.service.AiService;
 import jakarta.validation.Valid;
@@ -29,21 +31,16 @@ public class AiController {
     }
 
     @PostMapping("/refine")
-    public ResponseEntity<Map<String, String>> refine(@RequestBody Map<String, String> request) {
+    public ResponseEntity<Map<String, String>> refine(@Valid @RequestBody AiRefineRequest request) {
         Long userId = SecurityUtils.getCurrentUserId();
-        String title = request.getOrDefault("title", "");
-        String description = request.getOrDefault("description", "");
-        String result = aiService.refine(title, description, userId);
+        String result = aiService.refine(request.getTitle(), request.getDescription(), userId);
         return ResponseEntity.ok(Map.of("questions", result != null ? result : "AI暂时不可用"));
     }
 
     @PostMapping("/suggest")
-    public ResponseEntity<Map<String, String>> suggest(@RequestBody Map<String, Object> request) {
+    public ResponseEntity<Map<String, String>> suggest(@Valid @RequestBody AiSuggestRequest request) {
         Long userId = SecurityUtils.getCurrentUserId();
-        Long ticketId = request.get("ticketId") != null ? Long.valueOf(request.get("ticketId").toString()) : null;
-        String title = (String) request.getOrDefault("title", "");
-        String description = (String) request.getOrDefault("description", "");
-        String result = aiService.suggest(ticketId, title, description, userId);
+        String result = aiService.suggest(request.getTicketId(), request.getTitle(), request.getDescription(), userId);
         return ResponseEntity.ok(Map.of("suggestion", result != null ? result : "AI暂时不可用"));
     }
 

@@ -19,7 +19,7 @@ import './index.css';
 function ProtectedRoute({ children, roles }: { children: React.ReactNode; roles?: UserRole[] }) {
   const { isAuthenticated, role } = useAuthStore();
   if (!isAuthenticated) return <Navigate to="/login" replace />;
-  if (roles && role && !roles.includes(role)) return <Navigate to="/" replace />;
+  if (roles && (!role || !roles.includes(role))) return <Navigate to="/" replace />;
   return <>{children}</>;
 }
 

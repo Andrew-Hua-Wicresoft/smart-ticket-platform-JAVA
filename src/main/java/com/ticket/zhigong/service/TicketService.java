@@ -30,17 +30,20 @@ public class TicketService {
     private final ClaudeApiService claudeApiService;
     private final KnowledgeBaseService kbService;
     private final RateLimiterService rateLimiterService;
+    private final SanitizationService sanitizationService;
 
     public TicketService(TicketRepository ticketRepository,
                          UserRepository userRepository,
                          ClaudeApiService claudeApiService,
                          KnowledgeBaseService kbService,
-                         RateLimiterService rateLimiterService) {
+                         RateLimiterService rateLimiterService,
+                         SanitizationService sanitizationService) {
         this.ticketRepository = ticketRepository;
         this.userRepository = userRepository;
         this.claudeApiService = claudeApiService;
         this.kbService = kbService;
         this.rateLimiterService = rateLimiterService;
+        this.sanitizationService = sanitizationService;
     }
 
     @Transactional
@@ -178,7 +181,7 @@ public class TicketService {
                     String priority = line.substring("PRIORITY:".length()).trim().toUpperCase();
                     ticket.setPriority(TicketPriority.valueOf(priority));
                 } else if (line.startsWith("REASON:")) {
-                    ticket.setPriorityReason(line.substring("REASON:".length()).trim());
+                    ticket.setPriorityReason(sanitizationService.sanitize(line.substring("REASON:".length()).trim()));
                 }
             }
         } catch (Exception e) {
