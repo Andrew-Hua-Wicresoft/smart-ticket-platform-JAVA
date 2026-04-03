@@ -4,11 +4,12 @@ import {
   Card, Descriptions, Tag, Button, Typography, Space, Input,
   message, Skeleton, Alert, Divider,
 } from 'antd';
-import { CheckCircleOutlined, UserAddOutlined } from '@ant-design/icons';
+import { CheckCircleOutlined, UserAddOutlined, RobotOutlined } from '@ant-design/icons';
 import { getTicket, assignTicket, resolveTicket, aiSuggest } from '../../api';
 import { useAuthStore } from '../../stores/authStore';
 import StatusDot from '../../components/StatusDot';
 import type { TicketResponse, TicketStatus, TicketPriority } from '../../types';
+import ReactMarkdown from 'react-markdown';
 import dayjs from 'dayjs';
 
 const { Title, Text, Paragraph } = Typography;
@@ -189,38 +190,76 @@ export default function TicketDetailPage() {
         {/* AI suggestion panel (engineer only) */}
         {isEngineer && (
           <div style={{
-            background: '#f9f0ff',
-            border: '1px solid #d3adf7',
+            background: '#fafafa',
+            border: '1px solid #e8e8e8',
             borderRadius: 8,
-            padding: 16,
             height: 'fit-content',
+            overflow: 'hidden',
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <div style={{
-                width: 20, height: 20, background: '#722ed1', borderRadius: '50%',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: '#fff', fontSize: 11,
-              }}>✦</div>
-              <Text strong style={{ color: '#722ed1', fontSize: 14 }}>AI 解决方案建议</Text>
+            {/* Header bar */}
+            <div style={{
+              background: 'linear-gradient(135deg, #722ed1 0%, #531dab 100%)',
+              padding: '12px 16px',
+              display: 'flex', alignItems: 'center', gap: 8,
+            }}>
+              <RobotOutlined style={{ color: '#fff', fontSize: 16 }} />
+              <Text strong style={{ color: '#fff', fontSize: 14 }}>AI 诊断助手</Text>
+              <Text style={{ color: 'rgba(255,255,255,0.65)', fontSize: 11, marginLeft: 'auto' }}>
+                Claude 驱动
+              </Text>
             </div>
 
-            {suggestion ? (
-              <div style={{
-                background: '#fff', border: '1px solid #d3adf7', borderRadius: 6,
-                padding: 12, fontSize: 13, lineHeight: 1.6, whiteSpace: 'pre-wrap',
-              }}>
-                {suggestion}
-              </div>
-            ) : (
-              <Button
-                block
-                style={{ background: '#722ed1', borderColor: '#722ed1', color: '#fff' }}
-                onClick={handleGetSuggestion}
-                loading={suggestLoading}
-              >
-                获取 AI 建议
-              </Button>
-            )}
+            <div style={{ padding: 16 }}>
+              {suggestion ? (
+                <div className="ai-markdown" style={{
+                  background: '#fff', border: '1px solid #f0f0f0', borderRadius: 6,
+                  padding: '12px 16px', fontSize: 13, lineHeight: 1.8,
+                  maxHeight: 600, overflowY: 'auto',
+                }}>
+                  <ReactMarkdown
+                    components={{
+                      h1: ({ children }) => <h3 style={{ fontSize: 16, fontWeight: 600, margin: '16px 0 8px', color: '#262626', borderBottom: '1px solid #f0f0f0', paddingBottom: 8 }}>{children}</h3>,
+                      h2: ({ children }) => <h4 style={{ fontSize: 15, fontWeight: 600, margin: '14px 0 6px', color: '#262626' }}>{children}</h4>,
+                      h3: ({ children }) => <h5 style={{ fontSize: 14, fontWeight: 600, margin: '12px 0 4px', color: '#531dab' }}>{children}</h5>,
+                      p: ({ children }) => <p style={{ margin: '6px 0', color: '#595959' }}>{children}</p>,
+                      ul: ({ children }) => <ul style={{ paddingLeft: 20, margin: '4px 0' }}>{children}</ul>,
+                      ol: ({ children }) => <ol style={{ paddingLeft: 20, margin: '4px 0' }}>{children}</ol>,
+                      li: ({ children }) => <li style={{ marginBottom: 3, color: '#595959' }}>{children}</li>,
+                      strong: ({ children }) => <strong style={{ color: '#262626' }}>{children}</strong>,
+                      code: ({ children, className }) => {
+                        const isBlock = className?.includes('language-');
+                        return isBlock ? (
+                          <pre style={{ background: '#f5f5f5', padding: 12, borderRadius: 4, overflow: 'auto', fontSize: 12, margin: '8px 0' }}>
+                            <code>{children}</code>
+                          </pre>
+                        ) : (
+                          <code style={{ background: '#f5f5f5', padding: '1px 4px', borderRadius: 3, fontSize: 12, color: '#d4380d' }}>{children}</code>
+                        );
+                      },
+                      hr: () => <hr style={{ border: 'none', borderTop: '1px solid #f0f0f0', margin: '12px 0' }} />,
+                    }}
+                  >
+                    {suggestion}
+                  </ReactMarkdown>
+                </div>
+              ) : (
+                <>
+                  <div style={{ textAlign: 'center', padding: '16px 0 12px', color: '#8c8c8c', fontSize: 12 }}>
+                    基于工单描述，AI 将分析可能的原因并提供解决步骤
+                  </div>
+                  <Button
+                    block
+                    size="large"
+                    style={{ background: '#722ed1', borderColor: '#722ed1', color: '#fff' }}
+                    onClick={handleGetSuggestion}
+                    loading={suggestLoading}
+                    icon={<RobotOutlined />}
+                  >
+                    获取 AI 诊断
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
         )}
       </div>

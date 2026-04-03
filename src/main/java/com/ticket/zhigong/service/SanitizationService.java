@@ -17,12 +17,18 @@ public class SanitizationService {
      */
     public String sanitize(String text) {
         if (text == null) return null;
-        // Jsoup.clean with NONE safelist strips every HTML tag
-        String cleaned = Jsoup.clean(text, Safelist.none());
-        // Jsoup.clean escapes &, <, > as entities — unescape for plain text storage
-        cleaned = org.jsoup.parser.Parser.unescapeEntities(cleaned, false);
+        // Jsoup.clean() treats input as HTML and collapses whitespace including \n.
+        // To preserve markdown newlines: split by \n, clean each line, rejoin.
+        String[] lines = text.split("\n", -1);
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < lines.length; i++) {
+            String cleaned = Jsoup.clean(lines[i], Safelist.none());
+            cleaned = org.jsoup.parser.Parser.unescapeEntities(cleaned, false);
+            sb.append(cleaned);
+            if (i < lines.length - 1) sb.append("\n");
+        }
         // Collapse excessive blank lines
-        cleaned = cleaned.replaceAll("\\n{3,}", "\n\n");
-        return cleaned.trim();
+        String result = sb.toString().replaceAll("\\n{3,}", "\n\n");
+        return result.trim();
     }
 }

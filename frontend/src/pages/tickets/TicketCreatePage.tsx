@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Form, Input, Button, Typography, message, Spin, Empty } from 'antd';
-import { SendOutlined } from '@ant-design/icons';
+import { SendOutlined, SearchOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { createTicket, aiSearch, logDeflection } from '../../api';
 import type { AiSearchResult } from '../../types';
 import { useDebouncedCallback } from '../../hooks/useDebounce';
@@ -104,76 +104,100 @@ export default function TicketCreatePage() {
           </Form>
         </Card>
 
-        {/* AI Suggestions Panel */}
+        {/* AI Self-Service Panel (customer-facing) */}
         <div style={{
-          background: '#f9f0ff',
-          border: '1px solid #d3adf7',
+          background: '#fff',
+          border: '1px solid #e8e8e8',
           borderRadius: 8,
-          padding: 16,
           height: 'fit-content',
+          overflow: 'hidden',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-            <div style={{
-              width: 20, height: 20, background: '#722ed1', borderRadius: '50%',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#fff', fontSize: 11,
-            }}>✦</div>
-            <Text strong style={{ color: '#722ed1', fontSize: 14 }}>AI 智能建议</Text>
+          {/* Header */}
+          <div style={{
+            background: '#f9f0ff',
+            borderBottom: '1px solid #d3adf7',
+            padding: '12px 16px',
+            display: 'flex', alignItems: 'center', gap: 8,
+          }}>
+            <SearchOutlined style={{ color: '#722ed1', fontSize: 16 }} />
+            <Text strong style={{ color: '#531dab', fontSize: 14 }}>智能自助</Text>
+            <Text style={{ color: '#8c8c8c', fontSize: 11, marginLeft: 'auto' }}>知识库搜索</Text>
           </div>
 
-          {searchLoading ? (
-            <div style={{ textAlign: 'center', padding: 24 }}>
-              <Spin size="small" />
-              <div style={{ fontSize: 12, color: '#8c8c8c', marginTop: 8 }}>正在搜索知识库...</div>
-            </div>
-          ) : suggestions.length > 0 ? (
-            <>
-              <Text style={{ fontSize: 12, color: '#531dab', display: 'block', marginBottom: 12 }}>
-                以下知识库文章可能帮助您解决问题：
-              </Text>
-              {suggestions.map((s) => (
-                <div
-                  key={s.kbId}
-                  style={{
-                    background: '#fff', border: '1px solid #d3adf7', borderRadius: 6,
-                    padding: 12, marginBottom: 8, cursor: 'pointer',
-                    transition: 'border-color 0.2s',
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#722ed1')}
-                  onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#d3adf7')}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Text strong style={{ fontSize: 14 }}>{s.title}</Text>
-                    <Text style={{ fontSize: 11, color: '#722ed1', fontWeight: 500 }}>
-                      {Math.round(s.similarity * 100)}% 匹配
-                    </Text>
-                  </div>
-                  <Paragraph
-                    ellipsis={{ rows: 2 }}
-                    style={{ fontSize: 12, color: '#8c8c8c', margin: '4px 0 0' }}
-                  >
-                    {s.content}
-                  </Paragraph>
+          <div style={{ padding: 16 }}>
+            {searchLoading ? (
+              <div style={{ textAlign: 'center', padding: 24 }}>
+                <Spin size="small" />
+                <div style={{ fontSize: 12, color: '#8c8c8c', marginTop: 8 }}>正在搜索知识库...</div>
+              </div>
+            ) : suggestions.length > 0 ? (
+              <>
+                <div style={{
+                  background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 6,
+                  padding: '8px 12px', marginBottom: 12, fontSize: 12, color: '#389e0d',
+                  display: 'flex', alignItems: 'center', gap: 6,
+                }}>
+                  <CheckCircleOutlined />
+                  找到 {suggestions.length} 篇相关文章，也许能帮您解决问题：
                 </div>
-              ))}
-              <Button
-                block
-                style={{ marginTop: 12, background: '#722ed1', borderColor: '#722ed1', color: '#fff' }}
-                onClick={() => suggestions[0] && handleDeflection(suggestions[0])}
-              >
-                问题已解决，无需提交
-              </Button>
-            </>
-          ) : (
-            <Empty
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-              description={
-                <Text style={{ fontSize: 12, color: '#8c8c8c' }}>
-                  输入问题描述后，AI 将自动搜索相关知识库文章
-                </Text>
-              }
-            />
-          )}
+                {suggestions.map((s, i) => (
+                  <div
+                    key={s.kbId}
+                    style={{
+                      background: '#fafafa', border: '1px solid #f0f0f0', borderRadius: 6,
+                      padding: 12, marginBottom: 8, cursor: 'pointer',
+                      transition: 'all 0.2s',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = '#1677ff';
+                      e.currentTarget.style.background = '#e6f4ff';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = '#f0f0f0';
+                      e.currentTarget.style.background = '#fafafa';
+                    }}
+                    onClick={() => handleDeflection(s)}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                      <div style={{
+                        width: 20, height: 20, borderRadius: '50%',
+                        background: '#1677ff', color: '#fff', fontSize: 11,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        flexShrink: 0, marginTop: 2,
+                      }}>{i + 1}</div>
+                      <div style={{ flex: 1 }}>
+                        <Text strong style={{ fontSize: 13 }}>{s.title}</Text>
+                        <div style={{
+                          fontSize: 11, color: '#722ed1', fontWeight: 500,
+                          marginTop: 2,
+                        }}>
+                          匹配度 {Math.round(s.similarity * 100)}%
+                        </div>
+                        <Paragraph
+                          ellipsis={{ rows: 2 }}
+                          style={{ fontSize: 12, color: '#8c8c8c', margin: '4px 0 0' }}
+                        >
+                          {s.content}
+                        </Paragraph>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                <div style={{ fontSize: 11, color: '#8c8c8c', textAlign: 'center', marginTop: 8 }}>
+                  点击文章即可标记为已解决
+                </div>
+              </>
+            ) : (
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description={
+                  <Text style={{ fontSize: 12, color: '#8c8c8c' }}>
+                    输入问题描述后，将自动搜索相关知识库文章
+                  </Text>
+                }
+              />
+            )}
+          </div>
         </div>
       </div>
     </div>
