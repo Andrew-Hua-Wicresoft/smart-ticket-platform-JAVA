@@ -2,13 +2,13 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Card, Descriptions, Tag, Button, Typography, Space, Input,
-  message, Skeleton, Alert, Divider,
+  message, Skeleton, Alert, Divider, List, Avatar,
 } from 'antd';
 import { CheckCircleOutlined, UserAddOutlined, RobotOutlined } from '@ant-design/icons';
-import { getTicket, assignTicket, resolveTicket, aiSuggest } from '../../api';
+import { getTicket, assignTicket, resolveTicket, aiSuggest, listTicketComments, addTicketComment } from '../../api';
 import { useAuthStore } from '../../stores/authStore';
 import StatusDot from '../../components/StatusDot';
-import type { TicketResponse, TicketPriority } from '../../types';
+import type { TicketResponse, TicketPriority, TicketComment } from '../../types';
 import ReactMarkdown from 'react-markdown';
 import dayjs from 'dayjs';
 
@@ -33,12 +33,18 @@ export default function TicketDetailPage() {
   const [assigning, setAssigning] = useState(false);
   const [suggestion, setSuggestion] = useState<string | null>(null);
   const [suggestLoading, setSuggestLoading] = useState(false);
+  const [comments, setComments] = useState<TicketComment[]>([]);
+  const [commentContent, setCommentContent] = useState('');
+  const [commentLoading, setCommentLoading] = useState(false);
 
   useEffect(() => {
     if (!id) return;
     setLoading(true);
-    getTicket(Number(id))
-      .then(({ data }) => setTicket(data))
+    Promise.all([getTicket(Number(id)), listTicketComments(Number(id))])
+      .then(([ticketResponse, commentsResponse]) => {
+        setTicket(ticketResponse.data);
+        setComments(commentsResponse.data);
+      })
       .catch(() => message.error('工单不存在'))
       .finally(() => setLoading(false));
   }, [id]);
@@ -84,6 +90,24 @@ export default function TicketDetailPage() {
       setSuggestion('AI暂时不可用');
     } finally {
       setSuggestLoading(false);
+    }
+  };
+
+  const handleAddComment = async () => {
+    if (!ticket || commentContent.trim().length === 0) {
+      message.warning('评论内容不能为空');
+      return;
+    }
+    setCommentLoading(true);
+    try {
+      const { data } = await addTicketComment(ticket.id, commentContent.trim());
+      setComments((current) => [...current, data]);
+      setCommentContent('');
+      message.success('评论已添加');
+    } catch (err: any) {
+      message.error(err.response?.data?.message || '添加评论失败');
+    } finally {
+      setCommentLoading(false);
     }
   };
 
@@ -185,6 +209,48 @@ export default function TicketDetailPage() {
               </Button>
             </Card>
           )}
+
+          <Card style={{ marginTop: 16 }}>
+            <Title level={5}>协作评论</Title>
+            <List
+              locale={{ emptyText: '暂无评论' }}
+              dataSource={comments}
+              renderItem={(comment) => (
+                <List.Item style={{ paddingInline: 0 }}>
+                  <List.Item.Meta
+                    avatar={<Avatar>{comment.authorName.slice(0, 1)}</Avatar>}
+                    title={
+                      <Space>
+                        <Text strong>{comment.authorName}</Text>
+                        <Tag>{comment.authorRole}</Tag>
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                          {dayjs(comment.createdAt).format('YYYY-MM-DD HH:mm')}
+                        </Text>
+                      </Space>
+                    }
+                    description={<Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>{comment.content}</Paragraph>}
+                  />
+                </List.Item>
+              )}
+            />
+            <Divider style={{ margin: '16px 0' }} />
+            <TextArea
+              rows={3}
+              placeholder="补充处理进展、沟通记录或需要协助的信息"
+              value={commentContent}
+              onChange={(e) => setCommentContent(e.target.value)}
+              showCount
+              maxLength={5000}
+            />
+            <Button
+              type="primary"
+              style={{ marginTop: 12 }}
+              loading={commentLoading}
+              onClick={handleAddComment}
+            >
+              添加评论
+            </Button>
+          </Card>
         </div>
 
         {/* AI suggestion panel (engineer only) */}

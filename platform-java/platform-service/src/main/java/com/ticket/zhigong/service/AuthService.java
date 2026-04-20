@@ -3,6 +3,7 @@ package com.ticket.zhigong.service;
 import com.ticket.zhigong.dto.LoginRequest;
 import com.ticket.zhigong.dto.LoginResponse;
 import com.ticket.zhigong.entity.User;
+import com.ticket.zhigong.enums.AuditAction;
 import com.ticket.zhigong.exception.BusinessException;
 import com.ticket.zhigong.repository.UserRepository;
 import com.ticket.zhigong.security.JwtUtil;
@@ -20,11 +21,16 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final AuditService auditService;
 
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtUtil jwtUtil) {
+    public AuthService(UserRepository userRepository,
+                       PasswordEncoder passwordEncoder,
+                       JwtUtil jwtUtil,
+                       AuditService auditService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
+        this.auditService = auditService;
     }
 
     public LoginResponse login(LoginRequest request) {
@@ -40,6 +46,8 @@ public class AuthService {
         }
 
         String token = jwtUtil.generateToken(user.getUsername(), user.getRole().name(), user.getId());
+        auditService.log(user.getId(), AuditAction.LOGIN_SUCCESS, "USER", user.getId(),
+                "用户 " + user.getUsername() + " 登录成功");
         log.info("Login success [username={}, role={}]", user.getUsername(), user.getRole());
         return new LoginResponse(token, jwtUtil.getExpirationMs() / 1000, user.getId(), user.getName(), user.getRole());
     }

@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Layout, Menu, Avatar, Dropdown, Typography } from 'antd';
+import { Layout, Menu, Avatar, Dropdown, Typography, Badge } from 'antd';
 import {
   FileTextOutlined,
   PlusCircleOutlined,
@@ -9,8 +9,12 @@ import {
   BarChartOutlined,
   LogoutOutlined,
   UserOutlined,
+  BellOutlined,
+  HistoryOutlined,
 } from '@ant-design/icons';
 import { useAuthStore } from '../stores/authStore';
+import { getUnreadNotificationCount } from '../api';
+import { NOTIFICATIONS_CHANGED_EVENT } from '../lib/notifications';
 import type { UserRole } from '../types';
 
 const { Sider, Header, Content } = Layout;
@@ -30,7 +34,9 @@ const allMenuItems: MenuItem[] = [
   { key: '/my-tickets', icon: <FileTextOutlined />, label: '我的工单', group: '工单管理', roles: ['CUSTOMER', 'ENGINEER'] },
   { key: '/kb', icon: <BookOutlined />, label: '知识库', group: '知识库', roles: ['CUSTOMER', 'ENGINEER', 'ADMIN'] },
   { key: '/kb/drafts', icon: <EditOutlined />, label: '待审核文章', group: '知识库', roles: ['ENGINEER', 'ADMIN'] },
+  { key: '/notifications', icon: <BellOutlined />, label: '通知中心', group: '协作', roles: ['CUSTOMER', 'ENGINEER', 'ADMIN'] },
   { key: '/admin/stats', icon: <BarChartOutlined />, label: '数据分析', group: '系统', roles: ['ADMIN'] },
+  { key: '/admin/audit', icon: <HistoryOutlined />, label: '审计日志', group: '系统', roles: ['ADMIN'] },
 ];
 
 const breadcrumbLabels: Record<string, string> = {
@@ -39,16 +45,38 @@ const breadcrumbLabels: Record<string, string> = {
   create: '提交工单',
   kb: '知识库',
   drafts: '待审核文章',
+  notifications: '通知中心',
   admin: '系统',
   stats: '数据分析',
+  audit: '审计日志',
 };
 
 export default function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const { name, role, logout } = useAuthStore();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const refreshUnreadCount = () => {
+    getUnreadNotificationCount()
+      .then(({ data }) => setUnreadCount(data.unreadCount))
+      .catch(() => setUnreadCount(0));
+  };
 
   const filteredItems = allMenuItems.filter((item) => role && item.roles.includes(role));
+
+  useEffect(() => {
+    if (!role) {
+      setUnreadCount(0);
+      return;
+    }
+    refreshUnreadCount();
+  }, [role, location.pathname]);
+
+  useEffect(() => {
+    window.addEventListener(NOTIFICATIONS_CHANGED_EVENT, refreshUnreadCount);
+    return () => window.removeEventListener(NOTIFICATIONS_CHANGED_EVENT, refreshUnreadCount);
+  }, [role]);
 
   // Group menu items
   const groups: Record<string, MenuItem[]> = {};
@@ -64,7 +92,14 @@ export default function AppLayout() {
     children: items.map((item) => ({
       key: item.key,
       icon: item.icon,
-      label: item.label,
+      label: item.key === '/notifications'
+        ? (
+          <span>
+            {item.label}
+            {unreadCount > 0 && <Badge count={unreadCount} size="small" style={{ marginInlineStart: 8 }} />}
+          </span>
+        )
+        : item.label,
     })),
   }));
 

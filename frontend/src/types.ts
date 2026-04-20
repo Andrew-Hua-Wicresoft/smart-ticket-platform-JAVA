@@ -29,6 +29,17 @@ export interface TicketResponse {
   resolvedAt: string | null;
 }
 
+export interface TicketComment {
+  id: number;
+  ticketId: number;
+  authorId: number;
+  authorName: string;
+  authorRole: UserRole;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AiSearchResult {
   kbId: number;
   title: string;
@@ -54,6 +65,51 @@ export interface AdminStats {
   avgResolutionTimeHours: number | null;
   kbArticleCount: number;
   kbPublishedCount: number;
+}
+
+export type NotificationType =
+  | 'TICKET_CREATED'
+  | 'TICKET_ASSIGNED'
+  | 'TICKET_RESOLVED'
+  | 'TICKET_COMMENTED'
+  | 'KB_ARTICLE_PUBLISHED';
+
+export interface NotificationItem {
+  id: number;
+  type: NotificationType;
+  title: string;
+  content: string;
+  ticketId: number | null;
+  read: boolean;
+  createdAt: string;
+  readAt: string | null;
+}
+
+export interface UnreadNotificationCount {
+  unreadCount: number;
+}
+
+export type AuditAction =
+  | 'LOGIN_SUCCESS'
+  | 'TICKET_CREATED'
+  | 'TICKET_ASSIGNED'
+  | 'TICKET_RESOLVED'
+  | 'TICKET_COMMENTED'
+  | 'KB_ARTICLE_PUBLISHED'
+  | 'KB_ARTICLE_UPDATED'
+  | 'KB_ARTICLE_DELETED';
+
+export interface AuditLog {
+  id: number;
+  actorId: number | null;
+  actorName: string | null;
+  actorRole: UserRole | null;
+  action: AuditAction;
+  resourceType: string;
+  resourceId: number | null;
+  summary: string;
+  requestId: string | null;
+  createdAt: string;
 }
 
 export interface Page<T> {

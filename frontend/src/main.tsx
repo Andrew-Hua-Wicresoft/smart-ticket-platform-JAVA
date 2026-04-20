@@ -13,6 +13,8 @@ import MyTicketsPage from './pages/tickets/MyTicketsPage';
 import KbListPage from './pages/kb/KbListPage';
 import KbDraftsPage from './pages/kb/KbDraftsPage';
 import AdminStatsPage from './pages/admin/AdminStatsPage';
+import AuditLogPage from './pages/admin/AuditLogPage';
+import NotificationListPage from './pages/notifications/NotificationListPage';
 import type { UserRole } from './types';
 import './index.css';
 
@@ -62,8 +64,12 @@ function App() {
             <Route path="kb/drafts" element={
               <ProtectedRoute roles={['ENGINEER', 'ADMIN']}><KbDraftsPage /></ProtectedRoute>
             } />
+            <Route path="notifications" element={<NotificationListPage />} />
             <Route path="admin/stats" element={
               <ProtectedRoute roles={['ADMIN']}><AdminStatsPage /></ProtectedRoute>
+            } />
+            <Route path="admin/audit" element={
+              <ProtectedRoute roles={['ADMIN']}><AuditLogPage /></ProtectedRoute>
             } />
           </Route>
         </Routes>

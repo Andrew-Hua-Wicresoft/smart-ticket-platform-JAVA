@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import java.util.List;
+import java.util.Optional;
 
 public interface TicketRepository extends JpaRepository<Ticket, Long> {
 
@@ -21,6 +22,9 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
 
     @EntityGraph(attributePaths = {"customer", "assignedEngineer"})
     Page<Ticket> findAll(Pageable pageable);
+
+    @EntityGraph(attributePaths = {"customer", "assignedEngineer"})
+    Optional<Ticket> findDetailedById(Long id);
 
     @Query("SELECT COUNT(t) FROM Ticket t WHERE t.status = :status")
     long countByStatus(@Param("status") TicketStatus status);
