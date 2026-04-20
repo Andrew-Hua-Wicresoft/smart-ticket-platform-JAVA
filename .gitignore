@@ -38,4 +38,5 @@ uploads/
 embedding-sidecar/__pycache__/
 embedding-sidecar/.venv/
 embedding-sidecar/model-cache/
+.m2repo/
 .gstack/

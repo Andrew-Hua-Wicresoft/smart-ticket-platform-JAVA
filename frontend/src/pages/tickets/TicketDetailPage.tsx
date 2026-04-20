@@ -8,7 +8,7 @@ import { CheckCircleOutlined, UserAddOutlined, RobotOutlined } from '@ant-design
 import { getTicket, assignTicket, resolveTicket, aiSuggest } from '../../api';
 import { useAuthStore } from '../../stores/authStore';
 import StatusDot from '../../components/StatusDot';
-import type { TicketResponse, TicketStatus, TicketPriority } from '../../types';
+import type { TicketResponse, TicketPriority } from '../../types';
 import ReactMarkdown from 'react-markdown';
 import dayjs from 'dayjs';
 
