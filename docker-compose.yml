@@ -9,43 +9,80 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./src/main/resources/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
-      - ./src/main/resources/data.sql:/docker-entrypoint-initdb.d/02-data.sql
+      - ./platform-java/platform-service/src/main/resources/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./platform-java/platform-service/src/main/resources/data.sql:/docker-entrypoint-initdb.d/02-data.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U zhigong"]
       interval: 5s
       timeout: 5s
       retries: 5
 
-  embedding:
-    build: ./embedding-sidecar
+  rabbitmq:
+    image: rabbitmq:4.1-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ai-service:
+    build:
+      context: ./ai-service
     ports:
       - "8100:8100"
     environment:
       EMBEDDING_MODEL: sentence-transformers/all-MiniLM-L6-v2
+      AI_PROVIDER: ${AI_PROVIDER:-anthropic}
+      AI_MODEL: ${AI_MODEL:-claude-sonnet-4-20250514}
+      AI_API_KEY: ${AI_API_KEY:-}
+      CLAUDE_API_KEY: ${CLAUDE_API_KEY:-}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8100/health"]
       interval: 10s
       timeout: 5s
       retries: 3
 
-  backend:
-    build: .
+  platform-service:
+    build:
+      context: .
+      dockerfile: platform-java/platform-service/Dockerfile
     ports:
-      - "8080:8080"
+      - "8081:8081"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-zhigong}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-zhigong}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
       SQL_INIT_MODE: always
+      LLM_PROVIDER: ${LLM_PROVIDER:-anthropic}
+      LLM_API_KEY: ${LLM_API_KEY:-}
       CLAUDE_API_KEY: ${CLAUDE_API_KEY:-}
-      EMBEDDING_SIDECAR_URL: http://embedding:8100
+      LLM_MODEL: ${LLM_MODEL:-claude-sonnet-4-20250514}
+      EMBEDDING_SIDECAR_URL: http://ai-service:8100
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
     depends_on:
       postgres:
         condition: service_healthy
-      embedding:
+      rabbitmq:
         condition: service_healthy
+      ai-service:
+        condition: service_healthy
+
+  gateway:
+    build:
+      context: .
+      dockerfile: platform-java/gateway/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      PLATFORM_SERVICE_URL: http://platform-service:8081
+    depends_on:
+      platform-service:
+        condition: service_started
 
 volumes:
   postgres_data:
