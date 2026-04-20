@@ -38,6 +38,15 @@ CREATE TABLE IF NOT EXISTS ticket_images (
     image_url VARCHAR(500) NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS ticket_comments (
+    id BIGSERIAL PRIMARY KEY,
+    ticket_id BIGINT NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
+    author_id BIGINT NOT NULL REFERENCES users(id),
+    content TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
 -- Knowledge base with vector embeddings (384d for all-MiniLM-L6-v2)
 CREATE TABLE IF NOT EXISTS knowledge_base (
     id BIGSERIAL PRIMARY KEY,
@@ -80,11 +89,37 @@ CREATE TABLE IF NOT EXISTS deflections (
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS notifications (
+    id BIGSERIAL PRIMARY KEY,
+    recipient_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type VARCHAR(40) NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    content TEXT NOT NULL,
+    ticket_id BIGINT REFERENCES tickets(id) ON DELETE SET NULL,
+    read BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    read_at TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id BIGSERIAL PRIMARY KEY,
+    actor_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    action VARCHAR(50) NOT NULL,
+    resource_type VARCHAR(50) NOT NULL,
+    resource_id BIGINT,
+    summary VARCHAR(500) NOT NULL,
+    request_id VARCHAR(100),
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
 -- Indexes for common queries
 CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status);
 CREATE INDEX IF NOT EXISTS idx_tickets_customer ON tickets(customer_id);
 CREATE INDEX IF NOT EXISTS idx_tickets_engineer ON tickets(assigned_engineer_id);
 CREATE INDEX IF NOT EXISTS idx_tickets_created ON tickets(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ticket_comments_ticket ON ticket_comments(ticket_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_kb_status ON knowledge_base(status);
 CREATE INDEX IF NOT EXISTS idx_ai_interactions_type ON ai_interactions(type);
 CREATE INDEX IF NOT EXISTS idx_ai_interactions_created ON ai_interactions(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notifications_recipient ON notifications(recipient_id, read, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_created ON audit_logs(created_at DESC);

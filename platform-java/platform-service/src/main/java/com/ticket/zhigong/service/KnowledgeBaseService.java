@@ -4,11 +4,15 @@ import com.ticket.zhigong.dto.AiSearchResult;
 import com.ticket.zhigong.dto.KbArticleResponse;
 import com.ticket.zhigong.entity.KnowledgeBase;
 import com.ticket.zhigong.entity.User;
+import com.ticket.zhigong.enums.AuditAction;
 import com.ticket.zhigong.enums.KbArticleStatus;
+import com.ticket.zhigong.enums.NotificationType;
+import com.ticket.zhigong.enums.UserRole;
 import com.ticket.zhigong.exception.BusinessException;
 import com.ticket.zhigong.llm.LlmClient;
 import com.ticket.zhigong.repository.KnowledgeBaseRepository;
 import com.ticket.zhigong.repository.UserRepository;
+import com.ticket.zhigong.security.SecurityUtils;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.Query;
@@ -35,19 +39,25 @@ public class KnowledgeBaseService {
     private final LlmClient llmClient;
     private final SanitizationService sanitizationService;
     private final EntityManager entityManager;
+    private final NotificationService notificationService;
+    private final AuditService auditService;
 
     public KnowledgeBaseService(KnowledgeBaseRepository kbRepository,
                                  UserRepository userRepository,
                                  EmbeddingService embeddingService,
                                  LlmClient llmClient,
                                  SanitizationService sanitizationService,
-                                 EntityManager entityManager) {
+                                 EntityManager entityManager,
+                                 NotificationService notificationService,
+                                 AuditService auditService) {
         this.kbRepository = kbRepository;
         this.userRepository = userRepository;
         this.embeddingService = embeddingService;
         this.llmClient = llmClient;
         this.sanitizationService = sanitizationService;
         this.entityManager = entityManager;
+        this.notificationService = notificationService;
+        this.auditService = auditService;
     }
 
     /**
@@ -165,6 +175,18 @@ public class KnowledgeBaseService {
 
         // Re-embed if needed
         embedKbArticle(kb);
+        notificationService.notifyUsers(
+                userRepository.findByRoleIn(List.of(UserRole.ADMIN)).stream()
+                        .map(User::getId)
+                        .toList(),
+                NotificationType.KB_ARTICLE_PUBLISHED,
+                "知识库文章已发布",
+                "知识库文章 #" + articleId + " 已发布：" + kb.getTitle(),
+                kb.getSourceTicketId()
+        );
+        auditService.log(SecurityUtils.getCurrentUserId(),
+                AuditAction.KB_ARTICLE_PUBLISHED, "KNOWLEDGE_BASE", articleId,
+                "发布知识库文章 #" + articleId);
 
         return KbArticleResponse.fromEntity(kb);
     }
@@ -180,6 +202,9 @@ public class KnowledgeBaseService {
 
         // Re-embed with updated content
         embedKbArticle(kb);
+        auditService.log(SecurityUtils.getCurrentUserId(),
+                AuditAction.KB_ARTICLE_UPDATED, "KNOWLEDGE_BASE", articleId,
+                "更新知识库文章 #" + articleId);
 
         return KbArticleResponse.fromEntity(kb);
     }
@@ -190,6 +215,9 @@ public class KnowledgeBaseService {
             throw new EntityNotFoundException("知识库文章 #" + articleId + " 不存在");
         }
         kbRepository.deleteById(articleId);
+        auditService.log(SecurityUtils.getCurrentUserId(),
+                AuditAction.KB_ARTICLE_DELETED, "KNOWLEDGE_BASE", articleId,
+                "删除知识库文章 #" + articleId);
     }
 
     private String vectorToString(float[] embedding) {

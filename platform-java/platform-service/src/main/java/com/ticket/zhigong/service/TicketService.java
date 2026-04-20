@@ -5,6 +5,8 @@ import com.ticket.zhigong.dto.TicketResolveRequest;
 import com.ticket.zhigong.dto.TicketResponse;
 import com.ticket.zhigong.entity.Ticket;
 import com.ticket.zhigong.entity.User;
+import com.ticket.zhigong.enums.AuditAction;
+import com.ticket.zhigong.enums.NotificationType;
 import com.ticket.zhigong.enums.TicketPriority;
 import com.ticket.zhigong.enums.TicketStatus;
 import com.ticket.zhigong.enums.UserRole;
@@ -36,19 +38,25 @@ public class TicketService {
     private final KnowledgeBaseService kbService;
     private final RateLimiterService rateLimiterService;
     private final SanitizationService sanitizationService;
+    private final NotificationService notificationService;
+    private final AuditService auditService;
 
     public TicketService(TicketRepository ticketRepository,
                          UserRepository userRepository,
                          LlmClient llmClient,
                          KnowledgeBaseService kbService,
                          RateLimiterService rateLimiterService,
-                         SanitizationService sanitizationService) {
+                         SanitizationService sanitizationService,
+                         NotificationService notificationService,
+                         AuditService auditService) {
         this.ticketRepository = ticketRepository;
         this.userRepository = userRepository;
         this.llmClient = llmClient;
         this.kbService = kbService;
         this.rateLimiterService = rateLimiterService;
         this.sanitizationService = sanitizationService;
+        this.notificationService = notificationService;
+        this.auditService = auditService;
     }
 
     @Transactional
@@ -78,6 +86,17 @@ public class TicketService {
         }
 
         ticket = ticketRepository.save(ticket);
+        notificationService.notifyUsers(
+                userRepository.findByRoleIn(List.of(UserRole.ENGINEER, UserRole.ADMIN)).stream()
+                        .map(User::getId)
+                        .toList(),
+                NotificationType.TICKET_CREATED,
+                "有新工单待处理",
+                "新工单 #" + ticket.getId() + " 已创建：" + ticket.getTitle(),
+                ticket.getId()
+        );
+        auditService.log(userId, AuditAction.TICKET_CREATED, "TICKET", ticket.getId(),
+                "创建工单 #" + ticket.getId());
         log.info("Ticket created [id={}, userId={}, priority={}]", ticket.getId(), userId, ticket.getPriority());
         return TicketResponse.fromEntity(ticket);
     }
@@ -104,15 +123,18 @@ public class TicketService {
     }
 
     public TicketResponse getTicket(Long ticketId, Long userId, UserRole role) {
-        Ticket ticket = ticketRepository.findById(ticketId)
+        return TicketResponse.fromEntity(loadAuthorizedTicket(ticketId, userId, role));
+    }
+
+    public Ticket loadAuthorizedTicket(Long ticketId, Long userId, UserRole role) {
+        Ticket ticket = ticketRepository.findDetailedById(ticketId)
                 .orElseThrow(() -> new EntityNotFoundException("工单 #" + ticketId + " 不存在"));
 
-        // CUSTOMER can only see their own tickets
         if (role == UserRole.CUSTOMER && !ticket.getCustomer().getId().equals(userId)) {
             throw new BusinessException("FORBIDDEN", "无权限查看此工单", HttpStatus.FORBIDDEN);
         }
 
-        return TicketResponse.fromEntity(ticket);
+        return ticket;
     }
 
     @Transactional
@@ -134,7 +156,16 @@ public class TicketService {
         }
 
         // Refresh entity after atomic update
-        Ticket ticket = ticketRepository.findById(ticketId).orElseThrow();
+        Ticket ticket = ticketRepository.findDetailedById(ticketId).orElseThrow();
+        notificationService.notifyUsers(
+                List.of(ticket.getCustomer().getId()),
+                NotificationType.TICKET_ASSIGNED,
+                "工单已被接取",
+                "工单 #" + ticketId + " 已由 " + engineer.getName() + " 接取处理",
+                ticketId
+        );
+        auditService.log(engineerId, AuditAction.TICKET_ASSIGNED, "TICKET", ticketId,
+                "接取工单 #" + ticketId);
         log.info("Ticket assigned [id={}, engineerId={}]", ticketId, engineerId);
         return TicketResponse.fromEntity(ticket);
     }
@@ -165,6 +196,15 @@ public class TicketService {
         final String resolutionNotes = request.getResolutionNotes();
 
         ticket = ticketRepository.save(ticket);
+        notificationService.notifyUsers(
+                List.of(ticket.getCustomer().getId()),
+                NotificationType.TICKET_RESOLVED,
+                "工单已解决",
+                "工单 #" + ticketId + " 已解决，请查看处理说明",
+                ticketId
+        );
+        auditService.log(engineerId, AuditAction.TICKET_RESOLVED, "TICKET", ticketId,
+                "解决工单 #" + ticketId);
         log.info("Ticket resolved [id={}, engineerId={}]", ticketId, engineerId);
 
         // Async: generate KB article from resolution notes

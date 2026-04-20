@@ -1,7 +1,8 @@
 import client from './client';
 import type {
   LoginResponse, TicketResponse, AiSearchResult,
-  KbArticle, AdminStats, Page,
+  KbArticle, AdminStats, Page, TicketComment,
+  NotificationItem, UnreadNotificationCount, AuditLog,
 } from '../types';
 
 // Auth
@@ -17,6 +18,12 @@ export const listTickets = (page = 0, size = 20) =>
 
 export const getTicket = (id: number) =>
   client.get<TicketResponse>(`/tickets/${id}`);
+
+export const listTicketComments = (ticketId: number) =>
+  client.get<TicketComment[]>(`/tickets/${ticketId}/comments`);
+
+export const addTicketComment = (ticketId: number, content: string) =>
+  client.post<TicketComment>(`/tickets/${ticketId}/comments`, { content });
 
 export const assignTicket = (id: number) =>
   client.put<TicketResponse>(`/tickets/${id}/assign`);
@@ -60,3 +67,15 @@ export const deleteArticle = (id: number) =>
 // Admin
 export const getAdminStats = () =>
   client.get<AdminStats>('/admin/stats');
+
+export const listNotifications = (page = 0, size = 20) =>
+  client.get<Page<NotificationItem>>('/notifications', { params: { page, size } });
+
+export const markNotificationRead = (id: number) =>
+  client.put<NotificationItem>(`/notifications/${id}/read`);
+
+export const getUnreadNotificationCount = () =>
+  client.get<UnreadNotificationCount>('/notifications/unread-count');
+
+export const listAuditLogs = (page = 0, size = 20) =>
+  client.get<Page<AuditLog>>('/admin/audit-logs', { params: { page, size } });

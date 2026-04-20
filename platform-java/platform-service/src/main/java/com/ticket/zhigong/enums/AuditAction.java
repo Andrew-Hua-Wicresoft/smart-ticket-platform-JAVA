@@ -1,0 +1,12 @@
+package com.ticket.zhigong.enums;
+
+public enum AuditAction {
+    LOGIN_SUCCESS,
+    TICKET_CREATED,
+    TICKET_ASSIGNED,
+    TICKET_RESOLVED,
+    TICKET_COMMENTED,
+    KB_ARTICLE_PUBLISHED,
+    KB_ARTICLE_UPDATED,
+    KB_ARTICLE_DELETED
+}
