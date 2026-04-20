@@ -2,7 +2,7 @@
 
 AI-powered internal IT support ticket system. Customers submit tickets, AI suggests solutions from the knowledge base before they even hit "submit", engineers get AI-assisted resolution suggestions, and resolved tickets automatically generate knowledge base articles for next time.
 
-Built with Spring Boot 3.4 + React 18 + PostgreSQL/pgvector + Claude API.
+Built with a Phase 1 hybrid foundation: Spring Boot 3.5 + Spring Cloud Gateway + PostgreSQL/pgvector + FastAPI AI service + React 19.
 
 ## What It Does
 
@@ -26,22 +26,25 @@ Built with Spring Boot 3.4 + React 18 + PostgreSQL/pgvector + Claude API.
 ## Architecture
 
 ```
-┌─────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│  React 18   │────▶│  Spring Boot 3.4 │────▶│ PostgreSQL 16   │
-│  Ant Design │     │  REST API + JWT  │     │ + pgvector      │
-│  TypeScript │     │                  │     │                 │
-│  Vite       │     │  Claude API ─────│────▶│ ai_interactions │
-│  port 5173  │     │  (5 call sites)  │     │ knowledge_base  │
-│             │     │  port 8080       │     │ vector(384)     │
-└─────────────┘     └────────┬─────────┘     └─────────────────┘
-                             │
-                    ┌────────▼─────────┐
-                    │ Embedding Sidecar│
-                    │ FastAPI + Python │
-                    │ all-MiniLM-L6-v2 │
-                    │ (384d)           │
-                    │ port 8100        │
-                    └──────────────────┘
+┌──────────────┐     ┌────────────────────────┐     ┌────────────────────────┐
+│ React 19     │────▶│ Gateway Service        │────▶│ Platform Service       │
+│ TypeScript   │     │ Spring Cloud Gateway   │     │ Spring Boot 3.5 + JPA  │
+│ Ant Design 6 │     │ port 8080              │     │ port 8081              │
+│ Vite         │     └──────────┬─────────────┘     └──────────┬─────────────┘
+│ port 5173    │                │                                │
+└──────────────┘                │                                │
+                                │                                │
+                       ┌────────▼────────┐              ┌────────▼─────────┐
+                       │ AI Service      │              │ PostgreSQL 16    │
+                       │ FastAPI         │              │ + pgvector       │
+                       │ all-MiniLM-L6-v2│              │ knowledge_base   │
+                       │ port 8100       │              │ ai_interactions  │
+                       └────────┬────────┘              └──────────────────┘
+                                │
+                       ┌────────▼────────┐
+                       │ RabbitMQ 4.1    │
+                       │ async backbone  │
+                       └─────────────────┘
 ```
 
 ### Claude API Integration (5 call sites)
@@ -62,11 +65,11 @@ Knowledge base articles are embedded using `all-MiniLM-L6-v2` (384 dimensions) v
 
 ### Prerequisites
 
-- Java 17 (e.g., `brew install openjdk@17`)
+- Java 17
 - Node.js 18+ and npm
-- Docker (for PostgreSQL with pgvector)
-- Optional: Claude API key for AI features
-- Optional: Python 3.9+ for embedding sidecar
+- Docker
+- Optional: LLM API key (`LLM_API_KEY` or legacy `CLAUDE_API_KEY`)
+- Optional: Python 3.11+ for local AI service work
 
 ### 1. Start PostgreSQL
 
@@ -76,27 +79,32 @@ docker compose up -d postgres
 
 This starts PostgreSQL 16 with pgvector, creates the `zhigong` database, and runs `schema.sql` + `data.sql` (seed data with 6 users, 20 KB articles, 5 sample tickets).
 
-### 2. Start the Backend
+### 2. Start the Platform Service
 
 ```bash
-# Set Java 17 if not default
-export JAVA_HOME=/opt/homebrew/opt/openjdk@17
-
-# Generate a JWT secret (required)
+# Generate a JWT secret (required) if you are not using .env
 export JWT_SECRET=$(openssl rand -base64 48)
 
 # Load seed data on first run
-SQL_INIT_MODE=always mvn spring-boot:run
+SQL_INIT_MODE=always mvn -pl platform-java/platform-service spring-boot:run
 ```
 
-Backend starts on http://localhost:8080. After first run, drop `SQL_INIT_MODE=always` so seed data doesn't re-insert.
+Platform service starts on http://localhost:8081. After first run, drop `SQL_INIT_MODE=always` so seed data doesn't re-insert.
 
-To enable AI features, set the Claude API key:
+To enable vendor-compatible AI calls, set provider variables:
 ```bash
-CLAUDE_API_KEY=sk-ant-... JWT_SECRET=$JWT_SECRET mvn spring-boot:run
+LLM_PROVIDER=anthropic LLM_API_KEY=... JWT_SECRET=$JWT_SECRET mvn -pl platform-java/platform-service spring-boot:run
 ```
 
-### 3. Start the Frontend
+### 3. Start the Gateway
+
+```bash
+mvn -pl platform-java/gateway spring-boot:run
+```
+
+Gateway starts on http://localhost:8080 and becomes the only public entrypoint for the browser.
+
+### 4. Start the Frontend
 
 ```bash
 cd frontend
@@ -104,17 +112,17 @@ npm install
 npm run dev
 ```
 
-Frontend starts on http://localhost:5173 with proxy to backend.
+Frontend starts on http://localhost:5173 with proxy to the gateway.
 
-### 4. (Optional) Start Embedding Sidecar
+### 5. (Optional) Start the AI Service
 
 ```bash
-cd embedding-sidecar
+cd ai-service
 pip install -r requirements.txt
 uvicorn main:app --host 0.0.0.0 --port 8100
 ```
 
-First run downloads the `all-MiniLM-L6-v2` model (~90MB). Enables AI-powered KB search and ticket deflection.
+First run downloads the `all-MiniLM-L6-v2` model. The Phase 1 AI service exposes `/internal/ai/*` compatibility endpoints and preserves local embedding support.
 
 ### Docker Compose (all services)
 
@@ -122,7 +130,7 @@ First run downloads the `all-MiniLM-L6-v2` model (~90MB). Enables AI-powered KB 
 docker compose up --build
 ```
 
-Starts PostgreSQL + embedding sidecar + backend. Add frontend separately with `npm run dev`.
+Starts PostgreSQL + RabbitMQ + AI service + platform service + gateway. Add frontend separately with `npm run dev`.
 
 ## Demo Accounts
 
@@ -165,11 +173,12 @@ Starts PostgreSQL + embedding sidecar + backend. Add frontend separately with `n
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | React 18, TypeScript, Ant Design 6, Vite, Zustand, Axios, dayjs |
-| Backend | Spring Boot 3.4, Java 17, Spring Security, JWT, JPA/Hibernate, jsoup |
+| Frontend | React 19, TypeScript, Ant Design 6, Vite, Zustand, Axios, dayjs |
+| Gateway | Spring Cloud Gateway, Spring Boot 3.5 |
+| Backend | Spring Boot 3.5, Java 17, Spring Security, JWT, JPA/Hibernate, jsoup, RabbitMQ starter |
 | Database | PostgreSQL 16 + pgvector (HNSW index, vector(384)) |
-| AI | Claude API (claude-sonnet-4-20250514), all-MiniLM-L6-v2 |
-| Embedding | Python FastAPI sidecar with sentence-transformers |
+| AI | Vendor-compatible LLM configuration (`anthropic`, `openai`, `deepseek`) + all-MiniLM-L6-v2 |
+| Embedding | Python FastAPI AI service with sentence-transformers, LangChain, SQLAlchemy skeleton |
 | Infrastructure | Docker Compose, Maven |
 
 ## Design System
@@ -199,31 +208,28 @@ Key rules:
 ## Project Structure
 
 ```
-├── src/main/java/com/ticket/zhigong/
-│   ├── config/          # SecurityConfig
-│   ├── controller/      # REST controllers (6)
-│   ├── dto/             # Request/response DTOs (15)
-│   ├── entity/          # JPA entities (5)
-│   ├── enums/           # Status, Priority, Role enums
-│   ├── exception/       # Global exception handler
-│   ├── repository/      # Spring Data JPA repositories (5)
-│   ├── security/        # JWT filter, util, SecurityUtils
-│   └── service/         # Business logic services (9)
-├── src/main/resources/
-│   ├── schema.sql       # Database schema (6 tables + indexes)
-│   ├── data.sql         # Seed data (users, KB articles, tickets)
-│   └── application.yml  # Configuration
+├── platform-java/
+│   ├── gateway/                    # Spring Cloud Gateway public entrypoint
+│   └── platform-service/           # Spring Boot business platform
+│       └── src/main/java/com/ticket/zhigong/
+│           ├── config/             # Security, request ID, LLM config
+│           ├── controller/         # REST controllers
+│           ├── dto/                # Request/response DTOs
+│           ├── entity/             # JPA entities
+│           ├── llm/                # Provider-compatible LLM client adapters
+│           ├── repository/         # Spring Data JPA repositories
+│           ├── security/           # JWT filter and helpers
+│           └── service/            # Business logic services
+├── ai-service/                     # FastAPI AI and embedding service
 ├── frontend/src/
-│   ├── api/             # Axios client + API functions
-│   ├── components/      # Shared components (StatusDot)
-│   ├── hooks/           # useDebounce
-│   ├── layouts/         # AppLayout with sidebar
-│   ├── pages/           # Login, Tickets, KB, Admin (8 pages)
-│   ├── stores/          # Zustand auth store
-│   └── types.ts         # TypeScript interfaces
-├── embedding-sidecar/   # Python FastAPI embedding service
-├── .env.example         # Template for required environment variables
-├── docker-compose.yml   # PostgreSQL + sidecar + backend
+│   ├── api/                         # Axios client + API functions
+│   ├── components/                  # Shared components
+│   ├── layouts/                     # App shell
+│   ├── pages/                       # Login, Tickets, KB, Admin
+│   └── stores/                      # Zustand auth store
+├── infra/                          # Infrastructure notes and future manifests
+├── .env.example                    # Template for required environment variables
+├── docker-compose.yml              # Postgres + RabbitMQ + gateway + platform + AI
 └── DESIGN.md            # Design system specification
 ```
 

@@ -8,6 +8,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
+        // Phase 1: all browser traffic now enters through the Java gateway.
         target: 'http://localhost:8080',
         changeOrigin: true,
       },

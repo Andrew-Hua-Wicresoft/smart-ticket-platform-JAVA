@@ -34,9 +34,20 @@ frontend/.cache/
 # Uploads
 uploads/
 
-# Python sidecar
+# Python AI service
+ai-service/__pycache__/
+ai-service/.venv/
+ai-service/model-cache/
+ai-service/.pytest_cache/
+ai-service/*.pyc
+
+# Legacy path kept for local cleanup
 embedding-sidecar/__pycache__/
 embedding-sidecar/.venv/
 embedding-sidecar/model-cache/
+
+# Java multi-module
+platform-java/**/target/
+
 .m2repo/
 .gstack/
