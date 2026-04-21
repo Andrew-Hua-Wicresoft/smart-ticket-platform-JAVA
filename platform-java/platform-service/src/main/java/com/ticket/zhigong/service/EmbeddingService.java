@@ -2,11 +2,8 @@ package com.ticket.zhigong.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestClientException;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.RestClient;
 
 import java.util.List;
 import java.util.Map;
@@ -21,13 +18,11 @@ public class EmbeddingService {
     private static final Logger log = LoggerFactory.getLogger(EmbeddingService.class);
     private static final int MAX_CHARS_FOR_EMBEDDING = 1000;
 
-    private final RestTemplate restTemplate;
-    private final String sidecarUrl;
+    private final RestClient restClient;
 
-    public EmbeddingService(
-            @Value("${embedding.sidecar.url:http://localhost:8100}") String sidecarUrl) {
-        this.restTemplate = new RestTemplate();
-        this.sidecarUrl = sidecarUrl;
+    public EmbeddingService(RestClient.Builder restClientBuilder,
+                            @org.springframework.beans.factory.annotation.Value("${ai.service.url:${embedding.sidecar.url:http://localhost:8100}}") String aiServiceUrl) {
+        this.restClient = restClientBuilder.baseUrl(aiServiceUrl).build();
     }
 
     /**
@@ -43,16 +38,15 @@ public class EmbeddingService {
                 : text;
 
         try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            var body = Map.of("text", truncated);
-            var request = new HttpEntity<>(body, headers);
+            Map<String, Object> response = restClient.post()
+                    .uri("/embed")
+                    .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                    .body(Map.of("text", truncated))
+                    .retrieve()
+                    .body(Map.class);
 
-            ResponseEntity<Map> response = restTemplate.postForEntity(
-                    sidecarUrl + "/embed", request, Map.class);
-
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                List<Number> embedding = (List<Number>) response.getBody().get("embedding");
+            if (response != null) {
+                List<Number> embedding = (List<Number>) response.get("embedding");
                 if (embedding != null) {
                     float[] result = new float[embedding.size()];
                     for (int i = 0; i < embedding.size(); i++) {
@@ -61,8 +55,8 @@ public class EmbeddingService {
                     return result;
                 }
             }
-        } catch (RestClientException e) {
-            log.warn("Embedding sidecar unavailable: {}", e.getMessage());
+        } catch (Exception ex) {
+            log.warn("AI service embedding endpoint unavailable: {}", ex.getMessage());
         }
 
         return null;

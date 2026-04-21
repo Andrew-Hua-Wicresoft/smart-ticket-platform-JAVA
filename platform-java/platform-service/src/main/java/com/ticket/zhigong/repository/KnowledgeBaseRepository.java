@@ -11,6 +11,8 @@ public interface KnowledgeBaseRepository extends JpaRepository<KnowledgeBase, Lo
 
     Page<KnowledgeBase> findByStatus(KbArticleStatus status, Pageable pageable);
 
+    boolean existsBySourceTicketId(Long sourceTicketId);
+
     long countByStatus(KbArticleStatus status);
 
     @Query("SELECT COUNT(k) FROM KnowledgeBase k")
