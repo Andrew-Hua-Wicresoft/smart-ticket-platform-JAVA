@@ -7,11 +7,10 @@ import com.ticket.zhigong.entity.Ticket;
 import com.ticket.zhigong.entity.User;
 import com.ticket.zhigong.enums.AuditAction;
 import com.ticket.zhigong.enums.NotificationType;
-import com.ticket.zhigong.enums.TicketPriority;
 import com.ticket.zhigong.enums.TicketStatus;
 import com.ticket.zhigong.enums.UserRole;
 import com.ticket.zhigong.exception.BusinessException;
-import com.ticket.zhigong.llm.LlmClient;
+import com.ticket.zhigong.messaging.TicketEventPublisher;
 import com.ticket.zhigong.repository.TicketRepository;
 import com.ticket.zhigong.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -25,7 +24,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 @Service
 public class TicketService {
@@ -34,29 +32,20 @@ public class TicketService {
 
     private final TicketRepository ticketRepository;
     private final UserRepository userRepository;
-    private final LlmClient llmClient;
-    private final KnowledgeBaseService kbService;
-    private final RateLimiterService rateLimiterService;
-    private final SanitizationService sanitizationService;
     private final NotificationService notificationService;
     private final AuditService auditService;
+    private final TicketEventPublisher ticketEventPublisher;
 
     public TicketService(TicketRepository ticketRepository,
                          UserRepository userRepository,
-                         LlmClient llmClient,
-                         KnowledgeBaseService kbService,
-                         RateLimiterService rateLimiterService,
-                         SanitizationService sanitizationService,
                          NotificationService notificationService,
-                         AuditService auditService) {
+                         AuditService auditService,
+                         TicketEventPublisher ticketEventPublisher) {
         this.ticketRepository = ticketRepository;
         this.userRepository = userRepository;
-        this.llmClient = llmClient;
-        this.kbService = kbService;
-        this.rateLimiterService = rateLimiterService;
-        this.sanitizationService = sanitizationService;
         this.notificationService = notificationService;
         this.auditService = auditService;
+        this.ticketEventPublisher = ticketEventPublisher;
     }
 
     @Transactional
@@ -70,21 +59,6 @@ public class TicketService {
         ticket.setCustomer(customer);
         ticket.setStatus(TicketStatus.OPEN);
 
-        // AI priority assignment (async, non-blocking if Claude unavailable)
-        try {
-            rateLimiterService.checkRateLimit(userId);
-            String priorityResult = llmClient.call(
-                    "你是一个IT工单系统的优先级分析器。根据工单描述，返回优先级和原因。格式：PRIORITY:HIGH/MEDIUM/LOW\\nREASON:一句话原因。\\n判断标准：影响全公司=HIGH，影响个人工作=MEDIUM，非紧急请求=LOW。",
-                    "工单标题: " + request.getTitle() + "\\n工单描述: " + request.getDescription(),
-                    "PRIORITY", userId, null);
-
-            if (priorityResult != null) {
-                parsePriority(priorityResult, ticket);
-            }
-        } catch (Exception e) {
-            // AI failure is non-blocking, default priority is MEDIUM
-        }
-
         ticket = ticketRepository.save(ticket);
         notificationService.notifyUsers(
                 userRepository.findByRoleIn(List.of(UserRole.ENGINEER, UserRole.ADMIN)).stream()
@@ -97,6 +71,7 @@ public class TicketService {
         );
         auditService.log(userId, AuditAction.TICKET_CREATED, "TICKET", ticket.getId(),
                 "创建工单 #" + ticket.getId());
+        ticketEventPublisher.publishTicketCreated(ticket, userId);
         log.info("Ticket created [id={}, userId={}, priority={}]", ticket.getId(), userId, ticket.getPriority());
         return TicketResponse.fromEntity(ticket);
     }
@@ -191,10 +166,6 @@ public class TicketService {
         ticket.setResolutionNotes(request.getResolutionNotes());
         ticket.setResolvedAt(LocalDateTime.now());
 
-        final String ticketTitle = ticket.getTitle();
-        final String ticketDescription = ticket.getDescription();
-        final String resolutionNotes = request.getResolutionNotes();
-
         ticket = ticketRepository.save(ticket);
         notificationService.notifyUsers(
                 List.of(ticket.getCustomer().getId()),
@@ -205,35 +176,9 @@ public class TicketService {
         );
         auditService.log(engineerId, AuditAction.TICKET_RESOLVED, "TICKET", ticketId,
                 "解决工单 #" + ticketId);
+        ticketEventPublisher.publishTicketResolved(ticket, engineerId);
         log.info("Ticket resolved [id={}, engineerId={}]", ticketId, engineerId);
 
-        // Async: generate KB article from resolution notes
-        final Long savedTicketId = ticket.getId();
-        CompletableFuture.runAsync(() -> {
-            kbService.generateKbArticleFromResolution(
-                    savedTicketId,
-                    ticketTitle,
-                    ticketDescription,
-                    resolutionNotes,
-                    engineerId);
-        });
-
         return TicketResponse.fromEntity(ticket);
-    }
-
-    private void parsePriority(String result, Ticket ticket) {
-        try {
-            String[] lines = result.split("\\n");
-            for (String line : lines) {
-                if (line.startsWith("PRIORITY:")) {
-                    String priority = line.substring("PRIORITY:".length()).trim().toUpperCase();
-                    ticket.setPriority(TicketPriority.valueOf(priority));
-                } else if (line.startsWith("REASON:")) {
-                    ticket.setPriorityReason(sanitizationService.sanitize(line.substring("REASON:".length()).trim()));
-                }
-            }
-        } catch (Exception e) {
-            // Parse failure is non-blocking, keep default MEDIUM
-        }
     }
 }

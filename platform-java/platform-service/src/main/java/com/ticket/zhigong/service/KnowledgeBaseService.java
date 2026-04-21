@@ -9,7 +9,6 @@ import com.ticket.zhigong.enums.KbArticleStatus;
 import com.ticket.zhigong.enums.NotificationType;
 import com.ticket.zhigong.enums.UserRole;
 import com.ticket.zhigong.exception.BusinessException;
-import com.ticket.zhigong.llm.LlmClient;
 import com.ticket.zhigong.repository.KnowledgeBaseRepository;
 import com.ticket.zhigong.repository.UserRepository;
 import com.ticket.zhigong.security.SecurityUtils;
@@ -21,7 +20,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,7 +34,6 @@ public class KnowledgeBaseService {
     private final KnowledgeBaseRepository kbRepository;
     private final UserRepository userRepository;
     private final EmbeddingService embeddingService;
-    private final LlmClient llmClient;
     private final SanitizationService sanitizationService;
     private final EntityManager entityManager;
     private final NotificationService notificationService;
@@ -45,7 +42,6 @@ public class KnowledgeBaseService {
     public KnowledgeBaseService(KnowledgeBaseRepository kbRepository,
                                  UserRepository userRepository,
                                  EmbeddingService embeddingService,
-                                 LlmClient llmClient,
                                  SanitizationService sanitizationService,
                                  EntityManager entityManager,
                                  NotificationService notificationService,
@@ -53,7 +49,6 @@ public class KnowledgeBaseService {
         this.kbRepository = kbRepository;
         this.userRepository = userRepository;
         this.embeddingService = embeddingService;
-        this.llmClient = llmClient;
         this.sanitizationService = sanitizationService;
         this.entityManager = entityManager;
         this.notificationService = notificationService;
@@ -98,47 +93,21 @@ public class KnowledgeBaseService {
         return searchResults;
     }
 
-    /**
-     * Async: Generate a KB article from resolution notes using Claude API.
-     * Creates as DRAFT status for engineer review.
-     */
-    @Async
-    public void generateKbArticleFromResolution(Long ticketId, String title, String description,
-                                                 String resolutionNotes, Long engineerId) {
-        try {
-            String articleContent = llmClient.call(
-                    "你是一个IT知识库文章生成器。根据工单信息和解决方案，生成一篇结构化的知识库文章。" +
-                    "格式：\\n## 问题描述\\n...\\n## 解决方案\\n...\\n## 注意事项\\n..." +
-                    "使用简洁明了的中文。",
-                    "工单标题: " + title + "\\n问题描述: " + description + "\\n解决方案: " + resolutionNotes,
-                    "KB_GENERATE", engineerId, ticketId);
+    @Transactional
+    public KnowledgeBase createDraftArticle(Long ticketId, String title, String articleContent, Long engineerId) {
+        KnowledgeBase kb = new KnowledgeBase();
+        kb.setTitle(sanitizationService.sanitize(title));
+        kb.setContent(sanitizationService.sanitize(articleContent));
+        kb.setStatus(KbArticleStatus.DRAFT);
+        kb.setSourceTicketId(ticketId);
 
-            if (articleContent == null) {
-                // Claude unavailable, use raw resolution notes
-                articleContent = "## 问题描述\n" + description + "\n\n## 解决方案\n" + resolutionNotes;
-            }
+        User engineer = userRepository.findById(engineerId).orElse(null);
+        kb.setCreatedBy(engineer);
 
-            // Sanitize LLM output: strip HTML/script tags to prevent stored XSS/prompt injection
-            articleContent = sanitizationService.sanitize(articleContent);
-
-            KnowledgeBase kb = new KnowledgeBase();
-            kb.setTitle(sanitizationService.sanitize(title));
-            kb.setContent(articleContent);
-            kb.setStatus(KbArticleStatus.DRAFT);
-            kb.setSourceTicketId(ticketId);
-
-            User engineer = userRepository.findById(engineerId).orElse(null);
-            kb.setCreatedBy(engineer);
-
-            kb = kbRepository.save(kb);
-
-            // Embed the content for vector search
-            embedKbArticle(kb);
-
-            log.info("KB article generated from ticket #{}: DRAFT id={}", ticketId, kb.getId());
-        } catch (Exception e) {
-            log.error("Failed to generate KB article from ticket #{}: {}", ticketId, e.getMessage());
-        }
+        kb = kbRepository.save(kb);
+        embedKbArticle(kb);
+        log.info("KB draft created [ticketId={}, articleId={}]", ticketId, kb.getId());
+        return kb;
     }
 
     /**
