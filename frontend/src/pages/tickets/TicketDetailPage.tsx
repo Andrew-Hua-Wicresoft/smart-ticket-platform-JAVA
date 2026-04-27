@@ -272,7 +272,7 @@ export default function TicketDetailPage() {
               <RobotOutlined style={{ color: '#fff', fontSize: 16 }} />
               <Text strong style={{ color: '#fff', fontSize: 14 }}>AI 诊断助手</Text>
               <Text style={{ color: 'rgba(255,255,255,0.65)', fontSize: 11, marginLeft: 'auto' }}>
-                Claude 驱动
+                DeepSeek V4 Pro
               </Text>
             </div>
 

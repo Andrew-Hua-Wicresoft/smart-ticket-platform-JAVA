@@ -46,13 +46,24 @@ def _first_non_empty(*values: str) -> str:
     return ""
 
 
+def _float_env(name: str, default: float) -> float:
+    raw_value = os.getenv(name, "").strip()
+    if not raw_value:
+        return default
+    try:
+        return float(raw_value)
+    except ValueError:
+        logger.warning("Invalid %s=%s; using default %s", name, raw_value, default)
+        return default
+
+
 def _default_model_for_provider(provider: str) -> str:
     return {
-        "deepseek": "deepseek-chat",
+        "deepseek": "deepseek-v4-pro",
         "openai": "gpt-4.1-mini",
         "openai-compatible": "gpt-4.1-mini",
         "anthropic": "claude-sonnet-4-20250514",
-    }.get(provider, "deepseek-chat")
+    }.get(provider, "deepseek-v4-pro")
 
 
 def _default_base_url_for_provider(provider: str) -> str:
@@ -68,6 +79,7 @@ AI_PROVIDER = _first_non_empty(os.getenv("AI_PROVIDER", ""), LEGACY_LLM_PROVIDER
 AI_MODEL = _first_non_empty(os.getenv("AI_MODEL", ""), LEGACY_LLM_MODEL, _default_model_for_provider(AI_PROVIDER))
 AI_API_KEY = _first_non_empty(os.getenv("AI_API_KEY", ""), LEGACY_LLM_API_KEY, os.getenv("CLAUDE_API_KEY", ""))
 AI_BASE_URL = _first_non_empty(os.getenv("AI_BASE_URL", ""), LEGACY_LLM_BASE_URL, _default_base_url_for_provider(AI_PROVIDER))
+AI_REQUEST_TIMEOUT_SECONDS = _float_env("AI_REQUEST_TIMEOUT_SECONDS", 45.0)
 
 app = FastAPI(title="智能工单 AI Service", version="0.2.0")
 
@@ -231,7 +243,7 @@ def _call_openai_compatible_chat(system_prompt: str,
     )
 
     try:
-        with urllib.request.urlopen(request, timeout=30) as response:
+        with urllib.request.urlopen(request, timeout=AI_REQUEST_TIMEOUT_SECONDS) as response:
             payload = json.loads(response.read().decode("utf-8"))
             return _extract_openai_compatible_text(payload)
     except urllib.error.HTTPError as exc:
@@ -551,6 +563,7 @@ async def health() -> dict[str, Any]:
         "provider": AI_PROVIDER,
         "model": AI_MODEL,
         "base_url": AI_BASE_URL or None,
+        "request_timeout_seconds": AI_REQUEST_TIMEOUT_SECONDS,
         "embedding_model": MODEL_NAME,
         "dimension": model.get_sentence_embedding_dimension(),
         "database_ping": _touch_database(),

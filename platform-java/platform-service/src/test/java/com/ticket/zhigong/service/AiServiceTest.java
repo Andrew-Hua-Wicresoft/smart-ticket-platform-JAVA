@@ -43,7 +43,7 @@ class AiServiceTest {
                         0.91
                 )));
         when(internalAiClient.suggest(eq(99L), eq("VPN failed"), eq("VPN timeout"), contains("VPN troubleshooting"), eq(42L)))
-                .thenReturn(new InternalAiClient.TextResponse("deepseek", "deepseek-chat", "suggest", false, "Restart the client."));
+                .thenReturn(new InternalAiClient.TextResponse("deepseek", "deepseek-v4-pro", "suggest", false, "Restart the client."));
 
         String result = aiService.suggest(99L, "VPN failed", "VPN timeout", 42L);
 

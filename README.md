@@ -15,7 +15,7 @@ Built with a Phase 1 hybrid foundation: Spring Boot 3.5 + Spring Cloud Gateway +
 **For engineers (工单队列):**
 - See all open and in-progress tickets in a queue with priority badges
 - Assign tickets to yourself with atomic locking (two engineers can't grab the same ticket)
-- Get AI-powered resolution suggestions from Claude when working a ticket
+- Get AI-powered resolution suggestions from DeepSeek V4 Pro or another configured provider when working a ticket
 - Resolve tickets with notes, which auto-generate draft KB articles
 
 **For admins (数据分析):**
@@ -47,15 +47,20 @@ Built with a Phase 1 hybrid foundation: Spring Boot 3.5 + Spring Cloud Gateway +
                        └─────────────────┘
 ```
 
-### Claude API Integration (5 call sites)
+### LLM API Integration (5 call sites)
 
 | Call Site | Purpose | Trigger |
 |-----------|---------|---------|
 | PRIORITY | Auto-assign ticket priority (HIGH/MEDIUM/LOW) with reason | Ticket creation |
 | REFINE | Improve user's ticket description | User clicks "AI优化" |
-| SUGGEST | Generate resolution suggestions for engineers | Engineer clicks "获取AI建议" |
+| SUGGEST | Generate resolution suggestions for engineers with the configured LLM provider | Engineer clicks "获取AI建议" |
 | KB_GENERATE | Auto-generate KB article from resolution notes | Ticket resolved |
 | VISION | Analyze uploaded screenshots (planned) | Image attachment |
+
+The default AI provider is DeepSeek through the OpenAI-compatible API:
+`AI_PROVIDER=deepseek`, `AI_MODEL=deepseek-v4-pro`, `AI_BASE_URL=https://api.deepseek.com`.
+The AI service still accepts `anthropic`, `openai`, and `openai-compatible` so provider changes do not affect Java platform code.
+For heavier models such as V4 Pro, keep `AI_REQUEST_TIMEOUT_SECONDS` aligned with the Gateway/client timeout.
 
 ### Vector Search
 
@@ -68,7 +73,7 @@ Knowledge base articles are embedded using `all-MiniLM-L6-v2` (384 dimensions) v
 - Java 17
 - Node.js 18+ and npm
 - Docker
-- Optional: LLM API key (`LLM_API_KEY` or legacy `CLAUDE_API_KEY`)
+- Optional: AI API key (`AI_API_KEY`, `LLM_API_KEY`, or legacy `CLAUDE_API_KEY`)
 - Optional: Python 3.11+ for local AI service work
 
 ### 1. Start PostgreSQL
@@ -91,9 +96,9 @@ SQL_INIT_MODE=always mvn -pl platform-java/platform-service spring-boot:run
 
 Platform service starts on http://localhost:8081. After first run, drop `SQL_INIT_MODE=always` so seed data doesn't re-insert.
 
-To enable vendor-compatible AI calls, set provider variables:
+To enable DeepSeek V4 Pro calls, set provider variables:
 ```bash
-LLM_PROVIDER=anthropic LLM_API_KEY=... JWT_SECRET=$JWT_SECRET mvn -pl platform-java/platform-service spring-boot:run
+AI_PROVIDER=deepseek AI_MODEL=deepseek-v4-pro AI_API_KEY=... JWT_SECRET=$JWT_SECRET mvn -pl platform-java/platform-service spring-boot:run
 ```
 
 ### 3. Start the Gateway
@@ -156,8 +161,8 @@ Starts PostgreSQL + RabbitMQ + AI service + platform service + gateway. Add fron
 
 ### AI
 - `POST /api/ai/search` — vector similarity search against KB
-- `POST /api/ai/refine` — improve ticket description with Claude
-- `POST /api/ai/suggest` — get resolution suggestion from Claude
+- `POST /api/ai/refine` — improve ticket description with the configured LLM provider
+- `POST /api/ai/suggest` — get resolution suggestion from the configured LLM provider
 
 ### Knowledge Base
 - `GET /api/kb/published` — list published articles (all roles)
