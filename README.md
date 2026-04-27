@@ -20,7 +20,8 @@ Chinese documentation: [README_ZH.md](README_ZH.md)
 - Work from an open and in-progress ticket queue.
 - Assign tickets atomically to avoid double-claiming.
 - Add comments and resolution notes.
-- Request AI repair suggestions and similar knowledge base recommendations.
+- Request AI repair suggestions from DeepSeek V4 Pro or another configured provider.
+- Use KB-first similar article recommendations while working a ticket.
 - Resolve tickets and trigger asynchronous knowledge draft generation.
 
 ### Administrators
@@ -89,10 +90,24 @@ Phase 3 uses RabbitMQ as the asynchronous backbone for AI and knowledge workflow
 ## LLM and Embedding
 
 - LLM configuration is provider-compatible and currently supports DeepSeek-style, OpenAI-style, and Anthropic-style settings through environment variables.
+- The default AI provider is DeepSeek through the OpenAI-compatible API: `AI_PROVIDER=deepseek`, `AI_MODEL=deepseek-v4-pro`, `AI_BASE_URL=https://api.deepseek.com`.
+- For heavier models such as V4 Pro, keep `AI_REQUEST_TIMEOUT_SECONDS` aligned with the Gateway/client timeout.
 - The Python service keeps the AI core logic isolated from the business platform.
+- AI suggestion prompts are KB-first: reliable knowledge base matches must be cited by article id/title, while unreliable matches must be called out explicitly.
 - Embeddings use `sentence-transformers/all-MiniLM-L6-v2`.
 - Vectors are stored as 384-dimensional pgvector values.
 - HNSW indexing is used for knowledge base similarity search.
+- Internal KB search uses lightweight hybrid recall: pgvector candidates plus keyword candidates, domain keyword boosts, de-duplication, and score filtering.
+
+### LLM Call Sites
+
+| Call Site | Purpose | Trigger |
+| --- | --- | --- |
+| Priority analysis | Auto-assign ticket priority with reason | Ticket creation |
+| Refine | Improve a user's ticket description | User clicks AI optimization |
+| Suggest | Generate KB-first resolution suggestions | User requests AI suggestion |
+| Knowledge draft | Generate KB draft article from resolution notes | Ticket resolved |
+| Vision | Analyze uploaded screenshots | Planned image attachment flow |
 
 ## Tech Stack
 
@@ -116,6 +131,7 @@ Phase 3 uses RabbitMQ as the asynchronous backbone for AI and knowledge workflow
 - Docker Desktop or Docker Engine
 - Python 3.11+ for local AI service work
 - A local `.env` based on [.env.example](.env.example)
+- Optional: AI API key (`AI_API_KEY`, `LLM_API_KEY`, or legacy `CLAUDE_API_KEY`)
 
 ### 1. Configure Environment
 
@@ -129,10 +145,11 @@ JWT_SECRET=<base64-or-long-random-secret>
 Optional LLM variables:
 
 ```bash
-LLM_PROVIDER=deepseek
-LLM_MODEL=deepseek-chat
-LLM_API_KEY=<your-key>
-LLM_BASE_URL=https://api.deepseek.com
+AI_PROVIDER=deepseek
+AI_MODEL=deepseek-v4-pro
+AI_API_KEY=<your-key>
+AI_BASE_URL=https://api.deepseek.com
+AI_REQUEST_TIMEOUT_SECONDS=45
 ```
 
 Do not commit `.env`.
@@ -226,10 +243,10 @@ The browser should call only the Gateway public API under `/api/v1/**`. The Gate
 
 ### AI
 
-- `POST /api/v1/ai/search`
-- `POST /api/v1/ai/refine`
-- `POST /api/v1/ai/suggest`
-- `POST /api/v1/ai/similar`
+- `POST /api/v1/ai/search` - vector and keyword hybrid search against the knowledge base.
+- `POST /api/v1/ai/refine` - improve a ticket description with the configured LLM provider.
+- `POST /api/v1/ai/suggest` - generate KB-first repair suggestions with the configured LLM provider.
+- `POST /api/v1/ai/similar` - find similar knowledge or ticket references.
 
 ### Knowledge Base
 
