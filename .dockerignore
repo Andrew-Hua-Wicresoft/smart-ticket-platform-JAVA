@@ -9,4 +9,3 @@ ai-service/.venv
 ai-service/model-cache
 ai-service/__pycache__
 platform-java/**/target
-
