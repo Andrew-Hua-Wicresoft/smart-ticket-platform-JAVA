@@ -51,3 +51,4 @@ platform-java/**/target/
 
 .m2repo/
 .gstack/
+.claude/worktrees/
