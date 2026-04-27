@@ -7,7 +7,7 @@ spring:
         webflux:
           httpclient:
             connect-timeout: 3000
-            response-timeout: 10s
+            response-timeout: ${GATEWAY_RESPONSE_TIMEOUT:45s}
           routes:
             - id: platform-service-v1
               uri: ${PLATFORM_SERVICE_URL:http://localhost:8081}

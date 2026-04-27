@@ -86,8 +86,9 @@ export default function TicketDetailPage() {
     try {
       const { data } = await aiSuggest(ticket.id, ticket.title, ticket.description);
       setSuggestion(data.suggestion);
-    } catch {
-      setSuggestion('AI暂时不可用');
+    } catch (err: any) {
+      const reason = err.response?.data?.message || err.response?.data?.error || err.message;
+      setSuggestion(reason ? `AI诊断失败：${reason}` : 'AI暂时不可用');
     } finally {
       setSuggestLoading(false);
     }

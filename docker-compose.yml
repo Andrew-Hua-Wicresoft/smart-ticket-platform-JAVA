@@ -82,6 +82,7 @@ services:
       - "8080:8080"
     environment:
       PLATFORM_SERVICE_URL: http://platform-service:8081
+      SPRING_CLOUD_GATEWAY_SERVER_WEBFLUX_HTTPCLIENT_RESPONSE_TIMEOUT: 45s
     depends_on:
       platform-service:
         condition: service_started

@@ -30,6 +30,10 @@ public class AiService {
      */
     public List<AiSearchResult> search(String query, int topK, Long userId) {
         rateLimiterService.checkRateLimit(userId);
+        return searchInternal(query, topK, userId);
+    }
+
+    private List<AiSearchResult> searchInternal(String query, int topK, Long userId) {
         List<InternalAiClient.SearchResult> results = internalAiClient.searchKnowledgeBase(query, topK, userId);
         if (results == null) {
             return List.of();
@@ -56,7 +60,7 @@ public class AiService {
      */
     public String suggest(Long ticketId, String title, String description, Long userId) {
         rateLimiterService.checkRateLimit(userId);
-        List<AiSearchResult> searchResults = search(description, 3, userId);
+        List<AiSearchResult> searchResults = searchInternal(description, 3, userId);
         String context = buildSuggestionContext(searchResults);
         InternalAiClient.TextResponse response = internalAiClient.suggest(ticketId, title, description, context, userId);
         if (response == null || response.content() == null || response.content().isBlank()) {
@@ -70,7 +74,7 @@ public class AiService {
      */
     public List<AiSearchResult> findSimilarTickets(String description, Long userId) {
         rateLimiterService.checkRateLimit(userId);
-        return search(description, 5, userId);
+        return searchInternal(description, 5, userId);
     }
 
     private AiSearchResult toSearchResult(InternalAiClient.SearchResult result) {
