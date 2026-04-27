@@ -567,7 +567,7 @@ def analyze_ticket(request: AnalyzeTicketRequest) -> AnalyzeTicketResponse:
     fallback_response = AnalyzeTicketResponse(
         provider=AI_PROVIDER,
         model=AI_MODEL,
-        degraded=not bool(AI_API_KEY),
+        degraded=True,
         summary=f"{request.title}: {request.description[:120]}",
         suggested_priority=fallback_priority,
         priority_reason=_priority_reason(fallback_priority, request.description),
