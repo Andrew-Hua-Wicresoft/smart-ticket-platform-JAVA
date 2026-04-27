@@ -1,115 +1,198 @@
-# 智能工单系统 / Smart Ticket Platform
+# Smart Ticket Platform
 
-AI-powered internal IT support ticket system. Customers submit tickets, AI suggests solutions from the knowledge base before they even hit "submit", engineers get AI-assisted resolution suggestions, and resolved tickets automatically generate knowledge base articles for next time.
+AI-assisted internal IT service desk platform built with a hybrid Java + Python architecture.
 
-Built with a Phase 1 hybrid foundation: Spring Boot 3.5 + Spring Cloud Gateway + PostgreSQL/pgvector + FastAPI AI service + React 19.
+The current codebase is at Phase 3 of the migration plan: React calls a Java Gateway, business domains are owned by the Java Platform Service, and Python is kept as an internal AI service for LLM and embedding workflows. Phase 4 governance work, including Nacos, Sentinel, and Kubernetes manifests, is intentionally not started yet.
 
-## What It Does
+Chinese documentation: [README_ZH.md](README_ZH.md)
 
-**For customers (提交工单):**
-- Submit IT support tickets with title and description
-- As you type, AI searches the knowledge base and suggests existing solutions (ticket deflection)
-- If a KB article solves the problem, the ticket is never created, saving engineer time
-- Track your tickets in "我的工单" with real-time status updates
+## Capabilities
 
-**For engineers (工单队列):**
-- See all open and in-progress tickets in a queue with priority badges
-- Assign tickets to yourself with atomic locking (two engineers can't grab the same ticket)
-- Get AI-powered resolution suggestions from DeepSeek V4 Pro or another configured provider when working a ticket
-- Resolve tickets with notes, which auto-generate draft KB articles
+### Customers
 
-**For admins (数据分析):**
-- Dashboard with KPI cards: total tickets, AI deflection rate, avg resolution time, KB article count
-- Ticket status distribution breakdown
-- Manage knowledge base: review AI-generated draft articles, edit, publish, or delete
+- Submit IT support tickets through a guided form.
+- Search the knowledge base with AI before creating a ticket.
+- Track personal tickets and ticket status.
+- Receive notifications when ticket status changes.
+
+### Engineers
+
+- Work from an open and in-progress ticket queue.
+- Assign tickets atomically to avoid double-claiming.
+- Add comments and resolution notes.
+- Request AI repair suggestions from DeepSeek V4 Pro or another configured provider.
+- Use KB-first similar article recommendations while working a ticket.
+- Resolve tickets and trigger asynchronous knowledge draft generation.
+
+### Administrators
+
+- View ticket and knowledge base statistics.
+- Review audit logs.
+- Manage knowledge base drafts and published articles.
+- Use the same unified Java API entrypoint as the frontend.
 
 ## Architecture
 
-```
-┌──────────────┐     ┌────────────────────────┐     ┌────────────────────────┐
-│ React 19     │────▶│ Gateway Service        │────▶│ Platform Service       │
-│ TypeScript   │     │ Spring Cloud Gateway   │     │ Spring Boot 3.5 + JPA  │
-│ Ant Design 6 │     │ port 8080              │     │ port 8081              │
-│ Vite         │     └──────────┬─────────────┘     └──────────┬─────────────┘
-│ port 5173    │                │                                │
-└──────────────┘                │                                │
-                                │                                │
-                       ┌────────▼────────┐              ┌────────▼─────────┐
-                       │ AI Service      │              │ PostgreSQL 16    │
-                       │ FastAPI         │              │ + pgvector       │
-                       │ all-MiniLM-L6-v2│              │ knowledge_base   │
-                       │ port 8100       │              │ ai_interactions  │
-                       └────────┬────────┘              └──────────────────┘
-                                │
-                       ┌────────▼────────┐
-                       │ RabbitMQ 4.1    │
-                       │ async backbone  │
-                       └─────────────────┘
+```text
++--------------------+
+| React + TypeScript |
+| Vite + Ant Design  |
+| localhost:5173     |
++---------+----------+
+          |
+          | Public API: /api/v1/**
+          v
++------------------------+
+| Java Gateway           |
+| Spring Cloud Gateway   |
+| localhost:8080         |
++---------+--------------+
+          |
+          | Internal platform API: /api/**
+          v
++------------------------+        +------------------------+
+| Java Platform Service  +------->| Python AI Service      |
+| Spring Boot 3.5 + JPA  |        | FastAPI + LangChain    |
+| localhost:8081         |        | localhost:8100         |
++---------+--------------+        +---------+--------------+
+          |                                 |
+          v                                 v
++------------------------+        +------------------------+
+| PostgreSQL 16          |        | RabbitMQ 4.1           |
+| pgvector, HNSW, 384d   |        | async AI workflows     |
++------------------------+        +------------------------+
 ```
 
-### LLM API Integration (5 call sites)
+## Service Boundaries
+
+| Service | Responsibility |
+| --- | --- |
+| `frontend` | Browser UI, route guards, API calls through the Java Gateway |
+| `platform-java/gateway` | Single public entrypoint, request forwarding, future governance hooks |
+| `platform-java/platform-service` | Auth, users, tickets, comments, notifications, knowledge metadata, audit logs, RabbitMQ events |
+| `ai-service` | LLM provider calls, field extraction, follow-up questions, description enhancement, repair suggestions, embedding search, embedding rebuild, knowledge draft generation |
+| `postgres` | Shared PostgreSQL 16 instance with pgvector |
+| `rabbitmq` | Asynchronous ticket and AI workflow events |
+
+## Event Model
+
+Phase 3 uses RabbitMQ as the asynchronous backbone for AI and knowledge workflows.
+
+| Event | Purpose |
+| --- | --- |
+| `ticket.created` | Trigger non-blocking AI analysis after ticket creation |
+| `ticket.updated` | React to business changes without blocking the main request |
+| `ticket.resolved` | Generate knowledge draft candidates from resolution notes |
+| `knowledge.published` | Notify downstream embedding or indexing workflows |
+| `ai.analysis.completed` | Persist AI results back through the Java-owned boundary |
+| `knowledge.draft.generated` | Surface generated drafts for engineer or admin review |
+
+## LLM and Embedding
+
+- LLM configuration is provider-compatible and currently supports DeepSeek-style, OpenAI-style, and Anthropic-style settings through environment variables.
+- The default AI provider is DeepSeek through the OpenAI-compatible API: `AI_PROVIDER=deepseek`, `AI_MODEL=deepseek-v4-pro`, `AI_BASE_URL=https://api.deepseek.com`.
+- For heavier models such as V4 Pro, keep `AI_REQUEST_TIMEOUT_SECONDS` aligned with the Gateway/client timeout.
+- The Python service keeps the AI core logic isolated from the business platform.
+- AI suggestion prompts are KB-first: reliable knowledge base matches must be cited by article id/title, while unreliable matches must be called out explicitly.
+- Embeddings use `sentence-transformers/all-MiniLM-L6-v2`.
+- Vectors are stored as 384-dimensional pgvector values.
+- HNSW indexing is used for knowledge base similarity search.
+- Internal KB search uses lightweight hybrid recall: pgvector candidates plus keyword candidates, domain keyword boosts, de-duplication, and score filtering.
+
+### LLM Call Sites
 
 | Call Site | Purpose | Trigger |
-|-----------|---------|---------|
-| PRIORITY | Auto-assign ticket priority (HIGH/MEDIUM/LOW) with reason | Ticket creation |
-| REFINE | Improve user's ticket description | User clicks "AI优化" |
-| SUGGEST | Generate resolution suggestions for engineers with the configured LLM provider | Engineer clicks "获取AI建议" |
-| KB_GENERATE | Auto-generate KB article from resolution notes | Ticket resolved |
-| VISION | Analyze uploaded screenshots (planned) | Image attachment |
+| --- | --- | --- |
+| Priority analysis | Auto-assign ticket priority with reason | Ticket creation |
+| Refine | Improve a user's ticket description | User clicks AI optimization |
+| Suggest | Generate KB-first resolution suggestions | User requests AI suggestion |
+| Knowledge draft | Generate KB draft article from resolution notes | Ticket resolved |
+| Vision | Analyze uploaded screenshots | Planned image attachment flow |
 
-The default AI provider is DeepSeek through the OpenAI-compatible API:
-`AI_PROVIDER=deepseek`, `AI_MODEL=deepseek-v4-pro`, `AI_BASE_URL=https://api.deepseek.com`.
-The AI service still accepts `anthropic`, `openai`, and `openai-compatible` so provider changes do not affect Java platform code.
-For heavier models such as V4 Pro, keep `AI_REQUEST_TIMEOUT_SECONDS` aligned with the Gateway/client timeout.
+## Tech Stack
 
-### Vector Search
-
-Knowledge base articles are embedded using `all-MiniLM-L6-v2` (384 dimensions) via a Python FastAPI sidecar. Similarity search uses pgvector's HNSW index with cosine distance. Minimum similarity threshold: 0.3.
+| Layer | Technology |
+| --- | --- |
+| Frontend | React 19, TypeScript 5.9, Ant Design 6, Zustand 5, Vite 8 |
+| Gateway | Spring Cloud Gateway, Spring Boot 3.5 |
+| Java platform | Spring Boot 3.5, Java 17, Spring Data JPA, Spring Security, JWT, RabbitMQ |
+| AI service | Python 3.11, FastAPI, LangChain, SQLAlchemy, sentence-transformers |
+| Database | PostgreSQL 16, pgvector, HNSW index, `vector(384)` |
+| Messaging | RabbitMQ 4.1 management image |
+| Infrastructure | Docker Compose, Maven, future Kubernetes manifests |
+| Future governance | Nacos, Sentinel, Kubernetes, Helm skeletons in Phase 4 |
 
 ## Quick Start
 
 ### Prerequisites
 
-- Java 17
+- Java 17+
 - Node.js 18+ and npm
-- Docker
+- Docker Desktop or Docker Engine
+- Python 3.11+ for local AI service work
+- A local `.env` based on [.env.example](.env.example)
 - Optional: AI API key (`AI_API_KEY`, `LLM_API_KEY`, or legacy `CLAUDE_API_KEY`)
-- Optional: Python 3.11+ for local AI service work
 
-### 1. Start PostgreSQL
+### 1. Configure Environment
 
-```bash
-docker compose up -d postgres
-```
-
-This starts PostgreSQL 16 with pgvector, creates the `zhigong` database, and runs `schema.sql` + `data.sql` (seed data with 6 users, 20 KB articles, 5 sample tickets).
-
-### 2. Start the Platform Service
+Create `.env` locally and set at least:
 
 ```bash
-# Generate a JWT secret (required) if you are not using .env
-export JWT_SECRET=$(openssl rand -base64 48)
-
-# Load seed data on first run
-SQL_INIT_MODE=always mvn -pl platform-java/platform-service spring-boot:run
+POSTGRES_PASSWORD=zhigong123
+JWT_SECRET=<base64-or-long-random-secret>
 ```
 
-Platform service starts on http://localhost:8081. After first run, drop `SQL_INIT_MODE=always` so seed data doesn't re-insert.
-
-To enable DeepSeek V4 Pro calls, set provider variables:
-```bash
-AI_PROVIDER=deepseek AI_MODEL=deepseek-v4-pro AI_API_KEY=... JWT_SECRET=$JWT_SECRET mvn -pl platform-java/platform-service spring-boot:run
-```
-
-### 3. Start the Gateway
+Optional LLM variables:
 
 ```bash
-mvn -pl platform-java/gateway spring-boot:run
+AI_PROVIDER=deepseek
+AI_MODEL=deepseek-v4-pro
+AI_API_KEY=<your-key>
+AI_BASE_URL=https://api.deepseek.com
+AI_REQUEST_TIMEOUT_SECONDS=45
 ```
 
-Gateway starts on http://localhost:8080 and becomes the only public entrypoint for the browser.
+Do not commit `.env`.
 
-### 4. Start the Frontend
+### 2. Start Infrastructure and AI Service
+
+```bash
+docker compose up -d postgres rabbitmq ai-service
+```
+
+Health checks:
+
+```bash
+curl -fsS http://localhost:8100/health
+docker compose ps
+```
+
+### 3. Start the Java Platform Service
+
+```bash
+mvn -s .mvn/settings.xml -pl platform-java/platform-service spring-boot:run
+```
+
+Platform service health:
+
+```bash
+curl -fsS http://localhost:8081/actuator/health
+```
+
+### 4. Start the Java Gateway
+
+```bash
+PLATFORM_SERVICE_URL=http://localhost:8081 \
+mvn -s .mvn/settings.xml -pl platform-java/gateway spring-boot:run
+```
+
+Gateway health:
+
+```bash
+curl -fsS http://localhost:8080/actuator/health
+```
+
+### 5. Start the Frontend
 
 ```bash
 cd frontend
@@ -117,126 +200,121 @@ npm install
 npm run dev
 ```
 
-Frontend starts on http://localhost:5173 with proxy to the gateway.
+Open http://localhost:5173.
 
-### 5. (Optional) Start the AI Service
-
-```bash
-cd ai-service
-pip install -r requirements.txt
-uvicorn main:app --host 0.0.0.0 --port 8100
-```
-
-First run downloads the `all-MiniLM-L6-v2` model. The Phase 1 AI service exposes `/internal/ai/*` compatibility endpoints and preserves local embedding support.
-
-### Docker Compose (all services)
+### Full Docker Compose
 
 ```bash
 docker compose up --build
 ```
 
-Starts PostgreSQL + RabbitMQ + AI service + platform service + gateway. Add frontend separately with `npm run dev`.
+This starts PostgreSQL, RabbitMQ, AI service, platform service, and gateway. The frontend is usually run separately with `npm run dev` for local development.
 
 ## Demo Accounts
 
-| Role | Username | Password | What they see |
-|------|----------|----------|---------------|
-| Customer | customer1 | demo123 | 提交工单, 我的工单, 知识库 |
-| Customer | customer2 | demo123 | Same as above |
-| Engineer | engineer1 | demo123 | 工单队列, 我的工单, 知识库, 待审核文章 |
-| Engineer | engineer2 | demo123 | Same as above |
-| Admin | admin1 | demo123 | All of the above + 数据分析 |
+All demo accounts use password `demo123`.
 
-## API Endpoints
+| Role | Username |
+| --- | --- |
+| Customer | `customer1` |
+| Customer | `customer2` |
+| Customer | `customer3` |
+| Engineer | `engineer1` |
+| Engineer | `engineer2` |
+| Admin | `admin1` |
+
+## API Overview
+
+The browser should call only the Gateway public API under `/api/v1/**`. The Gateway rewrites requests to the Platform Service internal `/api/**` routes.
 
 ### Auth
-- `POST /api/auth/login` — returns JWT token (24h expiry)
+
+- `POST /api/v1/auth/login`
 
 ### Tickets
-- `POST /api/tickets` — create ticket (CUSTOMER)
-- `GET /api/tickets` — list tickets (role-filtered)
-- `GET /api/tickets/{id}` — get ticket detail
-- `POST /api/tickets/{id}/assign` — assign to self (ENGINEER)
-- `POST /api/tickets/{id}/resolve` — resolve with notes (ENGINEER)
+
+- `POST /api/v1/tickets`
+- `GET /api/v1/tickets`
+- `GET /api/v1/tickets/{id}`
+- `PUT /api/v1/tickets/{id}/assign`
+- `PUT /api/v1/tickets/{id}/resolve`
+- `GET /api/v1/tickets/{ticketId}/comments`
+- `POST /api/v1/tickets/{ticketId}/comments`
 
 ### AI
-- `POST /api/ai/search` — vector similarity search against KB
-- `POST /api/ai/refine` — improve ticket description with the configured LLM provider
-- `POST /api/ai/suggest` — get resolution suggestion from the configured LLM provider
+
+- `POST /api/v1/ai/search` - vector and keyword hybrid search against the knowledge base.
+- `POST /api/v1/ai/refine` - improve a ticket description with the configured LLM provider.
+- `POST /api/v1/ai/suggest` - generate KB-first repair suggestions with the configured LLM provider.
+- `POST /api/v1/ai/similar` - find similar knowledge or ticket references.
 
 ### Knowledge Base
-- `GET /api/kb/published` — list published articles (all roles)
-- `GET /api/kb/drafts` — list draft articles (ENGINEER/ADMIN)
-- `POST /api/kb/{id}/publish` — publish draft (ENGINEER/ADMIN)
-- `PUT /api/kb/{id}` — update article (ENGINEER/ADMIN)
-- `DELETE /api/kb/{id}` — delete article (ENGINEER/ADMIN)
 
-### Admin
-- `GET /api/admin/stats` — dashboard statistics (ADMIN)
+- `GET /api/v1/kb/published`
+- `GET /api/v1/kb/drafts`
+- `PUT /api/v1/kb/{id}/publish`
+- `PUT /api/v1/kb/{id}`
+- `DELETE /api/v1/kb/{id}`
 
-## Tech Stack
+### Notifications and Admin
 
-| Layer | Technology |
-|-------|-----------|
-| Frontend | React 19, TypeScript, Ant Design 6, Vite, Zustand, Axios, dayjs |
-| Gateway | Spring Cloud Gateway, Spring Boot 3.5 |
-| Backend | Spring Boot 3.5, Java 17, Spring Security, JWT, JPA/Hibernate, jsoup, RabbitMQ starter |
-| Database | PostgreSQL 16 + pgvector (HNSW index, vector(384)) |
-| AI | Vendor-compatible LLM configuration (`anthropic`, `openai`, `deepseek`) + all-MiniLM-L6-v2 |
-| Embedding | Python FastAPI AI service with sentence-transformers, LangChain, SQLAlchemy skeleton |
-| Infrastructure | Docker Compose, Maven |
+- `GET /api/v1/notifications`
+- `GET /api/v1/notifications/unread-count`
+- `PUT /api/v1/notifications/{id}/read`
+- `GET /api/v1/admin/stats`
+- `GET /api/v1/admin/audit-logs`
 
-## Design System
+## Schema Bootstrap
 
-See [DESIGN.md](DESIGN.md) for the full design system specification.
+`platform-service` defaults `spring.sql.init.mode` to `always` for local development. The schema is idempotent with `CREATE TABLE IF NOT EXISTS`, and seed data uses guarded inserts. For production-style runs, override:
 
-Key rules:
-- Blue (#1677ff) = user actions (buttons, links, navigation)
-- Purple (#722ed1) = AI-generated content (suggestions, confidence scores, generated articles)
-- System fonts only (PingFang SC on macOS, Microsoft YaHei on Windows)
-- 8px spacing grid
-- Status indicators: 6px colored dot + text label
+```bash
+SQL_INIT_MODE=never
+```
 
-## Security
+## Quality Checks
 
-- JWT authentication with HS512 signing (24h expiry, startup validation requires `JWT_SECRET`)
-- BCrypt password hashing
-- Role-based access control (CUSTOMER, ENGINEER, ADMIN) with frontend route guards
-- Atomic ticket assignment preventing race conditions
-- LLM output sanitization via jsoup (strips all HTML before database storage)
-- Input validation via typed DTOs with `@NotBlank`/`@Size` constraints on all endpoints
-- Rate limiting: AI calls (10/user/minute), login attempts (5/IP/minute) via Guava RateLimiter
-- Database credentials externalized via environment variables (no hardcoded defaults)
-- Structured logging across all critical paths: auth, exceptions, ticket operations, rate limiting
-- AI interaction logging for audit trail
+```bash
+mvn -s .mvn/settings.xml test
+cd frontend && npm run build
+python3 -c "import py_compile; py_compile.compile('ai-service/main.py', cfile='/tmp/ai-service-main.pyc', doraise=True)"
+docker compose config --quiet
+docker compose build ai-service
+```
 
 ## Project Structure
 
+```text
+.
+|-- ai-service/                       # FastAPI AI and embedding service
+|-- frontend/                         # React application
+|-- infra/                            # Infrastructure notes and future deployment assets
+|-- platform-java/
+|   |-- gateway/                      # Spring Cloud Gateway
+|   `-- platform-service/             # Spring Boot business platform
+|-- docker-compose.yml
+|-- DESIGN.md
+|-- README.md
+`-- README_ZH.md
 ```
-├── platform-java/
-│   ├── gateway/                    # Spring Cloud Gateway public entrypoint
-│   └── platform-service/           # Spring Boot business platform
-│       └── src/main/java/com/ticket/zhigong/
-│           ├── config/             # Security, request ID, LLM config
-│           ├── controller/         # REST controllers
-│           ├── dto/                # Request/response DTOs
-│           ├── entity/             # JPA entities
-│           ├── llm/                # Provider-compatible LLM client adapters
-│           ├── repository/         # Spring Data JPA repositories
-│           ├── security/           # JWT filter and helpers
-│           └── service/            # Business logic services
-├── ai-service/                     # FastAPI AI and embedding service
-├── frontend/src/
-│   ├── api/                         # Axios client + API functions
-│   ├── components/                  # Shared components
-│   ├── layouts/                     # App shell
-│   ├── pages/                       # Login, Tickets, KB, Admin
-│   └── stores/                      # Zustand auth store
-├── infra/                          # Infrastructure notes and future manifests
-├── .env.example                    # Template for required environment variables
-├── docker-compose.yml              # Postgres + RabbitMQ + gateway + platform + AI
-└── DESIGN.md            # Design system specification
-```
+
+## Security Notes
+
+- JWT uses HS512 signing and requires `JWT_SECRET`.
+- Passwords are BCrypt-hashed.
+- Role-based access control covers customer, engineer, and admin workflows.
+- Ticket assignment is atomic.
+- LLM output is sanitized before persistence.
+- AI interactions and business changes are logged for auditability.
+- Secrets must stay in `.env` or deployment secret stores, never in Git.
+
+## Roadmap
+
+- Phase 0: MVP baseline stabilization.
+- Phase 1: Java foundation and unified Gateway.
+- Phase 2: Business domain migration to Java.
+- Phase 3: AI service boundary and RabbitMQ-driven asynchronous workflows.
+- Phase 4: Nacos, Sentinel, Kubernetes, CI/CD, and deployment hardening.
 
 ## License
 
