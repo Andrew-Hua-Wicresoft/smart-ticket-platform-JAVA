@@ -35,14 +35,14 @@ class AiServiceTest {
 
     @Test
     void suggestConsumesOneRateLimitPermit() {
-        when(internalAiClient.searchKnowledgeBase("VPN timeout", 3, 42L))
+        when(internalAiClient.searchKnowledgeBase("VPN failed\nVPN timeout", 3, 42L))
                 .thenReturn(List.of(new InternalAiClient.SearchResult(
                         "7",
                         "VPN troubleshooting",
                         "Restart the VPN client and verify credentials.",
                         0.91
                 )));
-        when(internalAiClient.suggest(eq(99L), eq("VPN failed"), eq("VPN timeout"), contains("VPN troubleshooting"), eq(42L)))
+        when(internalAiClient.suggest(eq(99L), eq("VPN failed"), eq("VPN timeout"), contains("知识库参考 #7"), eq(42L)))
                 .thenReturn(new InternalAiClient.TextResponse("deepseek", "deepseek-v4-pro", "suggest", false, "Restart the client."));
 
         String result = aiService.suggest(99L, "VPN failed", "VPN timeout", 42L);

@@ -10,10 +10,11 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir torch==2.11.0 --index-url https://download.pytorch.org/whl/cpu \
     && pip install --no-cache-dir -r requirements.txt
 
-COPY main.py .
-
-# Pre-download the model during build
+# Pre-download the model before copying application code so Python-only edits do not
+# invalidate the heavyweight model cache layer.
 RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2', cache_folder='./model-cache')"
+
+COPY main.py .
 
 EXPOSE 8100
 
