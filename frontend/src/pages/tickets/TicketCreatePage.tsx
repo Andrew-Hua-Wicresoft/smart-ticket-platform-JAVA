@@ -107,7 +107,7 @@ export default function TicketCreatePage() {
         {/* AI Self-Service Panel (customer-facing) */}
         <div style={{
           background: '#fff',
-          border: '1px solid #e8e8e8',
+          border: '1px solid #f0f0f0',
           borderRadius: 8,
           height: 'fit-content',
           overflow: 'hidden',
@@ -120,7 +120,7 @@ export default function TicketCreatePage() {
             display: 'flex', alignItems: 'center', gap: 8,
           }}>
             <SearchOutlined style={{ color: '#722ed1', fontSize: 16 }} />
-            <Text strong style={{ color: '#531dab', fontSize: 14 }}>智能自助</Text>
+            <Text strong style={{ color: '#722ed1', fontSize: 14 }}>智能自助</Text>
             <Text style={{ color: '#8c8c8c', fontSize: 11, marginLeft: 'auto' }}>知识库搜索</Text>
           </div>
 
@@ -134,7 +134,7 @@ export default function TicketCreatePage() {
               <>
                 <div style={{
                   background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 6,
-                  padding: '8px 12px', marginBottom: 12, fontSize: 12, color: '#389e0d',
+                  padding: '8px 12px', marginBottom: 12, fontSize: 12, color: '#52c41a',
                   display: 'flex', alignItems: 'center', gap: 6,
                 }}>
                   <CheckCircleOutlined />

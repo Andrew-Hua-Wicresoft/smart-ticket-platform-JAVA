@@ -1,0 +1,11 @@
+.git
+.DS_Store
+.env
+.m2repo
+target
+frontend/node_modules
+frontend/dist
+ai-service/.venv
+ai-service/model-cache
+ai-service/__pycache__
+platform-java/**/target

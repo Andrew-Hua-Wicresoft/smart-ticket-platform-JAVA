@@ -65,7 +65,7 @@ export default function LoginPage() {
 
         <div style={{
           background: '#f9f0ff', border: '1px solid #d3adf7', borderRadius: 6,
-          padding: 12, fontSize: 12, color: '#531dab',
+          padding: 12, fontSize: 12, color: '#722ed1',
         }}>
           <Space orientation="vertical" size={2}>
             <Text strong style={{ color: '#722ed1', fontSize: 12 }}>✦ 演示账号</Text>
