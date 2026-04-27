@@ -257,14 +257,14 @@ export default function TicketDetailPage() {
         {isEngineer && (
           <div style={{
             background: '#fafafa',
-            border: '1px solid #e8e8e8',
+            border: '1px solid #f0f0f0',
             borderRadius: 8,
             height: 'fit-content',
             overflow: 'hidden',
           }}>
             {/* Header bar */}
             <div style={{
-              background: 'linear-gradient(135deg, #722ed1 0%, #531dab 100%)',
+              background: '#722ed1',
               padding: '12px 16px',
               display: 'flex', alignItems: 'center', gap: 8,
             }}>
@@ -286,7 +286,7 @@ export default function TicketDetailPage() {
                     components={{
                       h1: ({ children }) => <h3 style={{ fontSize: 16, fontWeight: 600, margin: '16px 0 8px', color: '#262626', borderBottom: '1px solid #f0f0f0', paddingBottom: 8 }}>{children}</h3>,
                       h2: ({ children }) => <h4 style={{ fontSize: 15, fontWeight: 600, margin: '14px 0 6px', color: '#262626' }}>{children}</h4>,
-                      h3: ({ children }) => <h5 style={{ fontSize: 14, fontWeight: 600, margin: '12px 0 4px', color: '#531dab' }}>{children}</h5>,
+                      h3: ({ children }) => <h5 style={{ fontSize: 14, fontWeight: 600, margin: '12px 0 4px', color: '#722ed1' }}>{children}</h5>,
                       p: ({ children }) => <p style={{ margin: '6px 0', color: '#595959' }}>{children}</p>,
                       ul: ({ children }) => <ul style={{ paddingLeft: 20, margin: '4px 0' }}>{children}</ul>,
                       ol: ({ children }) => <ol style={{ paddingLeft: 20, margin: '4px 0' }}>{children}</ol>,
