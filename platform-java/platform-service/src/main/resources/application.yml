@@ -8,7 +8,7 @@ spring:
     driver-class-name: org.postgresql.Driver
   sql:
     init:
-      mode: ${SQL_INIT_MODE:never}
+      mode: ${SQL_INIT_MODE:always}
   jpa:
     hibernate:
       ddl-auto: none
