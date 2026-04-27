@@ -3,6 +3,7 @@ package com.ticket.zhigong.controller;
 import com.ticket.zhigong.dto.AiRefineRequest;
 import com.ticket.zhigong.dto.AiSearchRequest;
 import com.ticket.zhigong.dto.AiSearchResult;
+import com.ticket.zhigong.dto.AiSuggestionSnapshot;
 import com.ticket.zhigong.dto.AiSuggestRequest;
 import com.ticket.zhigong.security.SecurityUtils;
 import com.ticket.zhigong.service.AiService;
@@ -42,6 +43,11 @@ public class AiController {
         Long userId = SecurityUtils.getCurrentUserId();
         String result = aiService.suggest(request.getTicketId(), request.getTitle(), request.getDescription(), userId);
         return ResponseEntity.ok(Map.of("suggestion", result != null ? result : "AI暂时不可用"));
+    }
+
+    @GetMapping("/suggest/latest")
+    public ResponseEntity<AiSuggestionSnapshot> latestSuggestion(@RequestParam Long ticketId) {
+        return ResponseEntity.ok(aiService.latestSuggestion(ticketId));
     }
 
     @PostMapping("/similar")

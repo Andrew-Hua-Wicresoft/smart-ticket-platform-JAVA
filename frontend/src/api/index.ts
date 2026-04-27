@@ -3,6 +3,7 @@ import type {
   LoginResponse, TicketResponse, AiSearchResult,
   KbArticle, AdminStats, Page, TicketComment,
   NotificationItem, UnreadNotificationCount, AuditLog,
+  AiSuggestionSnapshot,
 } from '../types';
 
 // Auth
@@ -40,6 +41,9 @@ export const aiRefine = (title: string, description: string) =>
 
 export const aiSuggest = (ticketId: number, title: string, description: string) =>
   client.post<{ suggestion: string }>('/ai/suggest', { ticketId, title, description });
+
+export const getLatestAiSuggestion = (ticketId: number) =>
+  client.get<AiSuggestionSnapshot>('/ai/suggest/latest', { params: { ticketId } });
 
 export const aiSimilar = (query: string) =>
   client.post<AiSearchResult[]>('/ai/similar', { query, topK: 5 });

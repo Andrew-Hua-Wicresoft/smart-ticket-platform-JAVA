@@ -1,7 +1,12 @@
 package com.ticket.zhigong.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ticket.zhigong.ai.InternalAiClient;
+import com.ticket.zhigong.dto.AiSuggestionSnapshot;
 import com.ticket.zhigong.dto.AiSearchResult;
+import com.ticket.zhigong.entity.AiInteraction;
+import com.ticket.zhigong.repository.AiInteractionRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -16,13 +21,19 @@ public class AiService {
     private final InternalAiClient internalAiClient;
     private final RateLimiterService rateLimiterService;
     private final SanitizationService sanitizationService;
+    private final AiInteractionRepository aiInteractionRepository;
+    private final ObjectMapper objectMapper;
 
     public AiService(InternalAiClient internalAiClient,
                      RateLimiterService rateLimiterService,
-                     SanitizationService sanitizationService) {
+                     SanitizationService sanitizationService,
+                     AiInteractionRepository aiInteractionRepository,
+                     ObjectMapper objectMapper) {
         this.internalAiClient = internalAiClient;
         this.rateLimiterService = rateLimiterService;
         this.sanitizationService = sanitizationService;
+        this.aiInteractionRepository = aiInteractionRepository;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -67,6 +78,13 @@ public class AiService {
             return "AI暂时不可用，请先检查最近变更、日志和依赖服务状态。";
         }
         return sanitizationService.sanitize(response.content());
+    }
+
+    public AiSuggestionSnapshot latestSuggestion(Long ticketId) {
+        return aiInteractionRepository
+                .findFirstByTicketIdAndTypeAndSuccessTrueOrderByCreatedAtDesc(ticketId, "SUGGEST")
+                .map(this::toSuggestionSnapshot)
+                .orElseGet(() -> new AiSuggestionSnapshot(false, null, null));
     }
 
     /**
@@ -117,6 +135,30 @@ public class AiService {
             return content;
         }
         return content.substring(0, 1600) + "\n...（内容已截断）";
+    }
+
+    private AiSuggestionSnapshot toSuggestionSnapshot(AiInteraction interaction) {
+        String suggestion = extractSuggestion(interaction.getOutputText());
+        if (suggestion == null || suggestion.isBlank()) {
+            return new AiSuggestionSnapshot(false, null, null);
+        }
+        return new AiSuggestionSnapshot(true, sanitizationService.sanitize(suggestion), interaction.getCreatedAt());
+    }
+
+    private String extractSuggestion(String outputText) {
+        if (outputText == null || outputText.isBlank()) {
+            return null;
+        }
+        try {
+            JsonNode node = objectMapper.readTree(outputText);
+            JsonNode content = node.get("content");
+            if (content != null && content.isTextual()) {
+                return content.asText();
+            }
+        } catch (Exception ignored) {
+            // Older rows may contain plain text instead of the serialized AI response.
+        }
+        return outputText;
     }
 
     private String fallbackQuestions(String title) {
