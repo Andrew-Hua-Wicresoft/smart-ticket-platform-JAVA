@@ -1,6 +1,7 @@
 package com.ticket.zhigong.controller;
 
 import com.ticket.zhigong.dto.AiSearchResult;
+import com.ticket.zhigong.dto.AiSuggestionSnapshot;
 import com.ticket.zhigong.repository.TicketRepository;
 import com.ticket.zhigong.service.AiService;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,6 +17,7 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -73,5 +75,19 @@ class AiControllerContractTest extends ControllerContractTestSupport {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
                 .andExpect(jsonPath("$.message").value("搜索内容长度必须在2-5000字之间"));
+    }
+
+    @Test
+    void latestSuggestionReturnsPersistedSnapshot() throws Exception {
+        authenticate(3001L, "engineer1", "ROLE_ENGINEER");
+
+        when(aiService.latestSuggestion(44L))
+                .thenReturn(new AiSuggestionSnapshot(true, "重启 VPN 客户端后验证。", null));
+
+        mockMvc.perform(get("/api/ai/suggest/latest")
+                        .param("ticketId", "44"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.available").value(true))
+                .andExpect(jsonPath("$.suggestion").value("重启 VPN 客户端后验证。"));
     }
 }

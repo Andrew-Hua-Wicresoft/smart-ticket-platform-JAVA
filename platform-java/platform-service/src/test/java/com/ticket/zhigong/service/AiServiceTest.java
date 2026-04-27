@@ -1,6 +1,9 @@
 package com.ticket.zhigong.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ticket.zhigong.ai.InternalAiClient;
+import com.ticket.zhigong.entity.AiInteraction;
+import com.ticket.zhigong.repository.AiInteractionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -8,9 +11,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
@@ -26,11 +29,20 @@ class AiServiceTest {
     @Mock
     private RateLimiterService rateLimiterService;
 
+    @Mock
+    private AiInteractionRepository aiInteractionRepository;
+
     private AiService aiService;
 
     @BeforeEach
     void setUp() {
-        aiService = new AiService(internalAiClient, rateLimiterService, new SanitizationService());
+        aiService = new AiService(
+                internalAiClient,
+                rateLimiterService,
+                new SanitizationService(),
+                aiInteractionRepository,
+                new ObjectMapper()
+        );
     }
 
     @Test
@@ -66,5 +78,20 @@ class AiServiceTest {
 
         verify(rateLimiterService).checkRateLimit(42L);
         verifyNoMoreInteractions(rateLimiterService);
+    }
+
+    @Test
+    void latestSuggestionReturnsPersistedSuggestContent() {
+        AiInteraction interaction = new AiInteraction();
+        interaction.setOutputText("""
+                {"provider":"deepseek","model":"deepseek-v4-pro","content":"Restart the VPN client."}
+                """);
+        when(aiInteractionRepository.findFirstByTicketIdAndTypeAndSuccessTrueOrderByCreatedAtDesc(99L, "SUGGEST"))
+                .thenReturn(Optional.of(interaction));
+
+        var result = aiService.latestSuggestion(99L);
+
+        assertThat(result.isAvailable()).isTrue();
+        assertThat(result.getSuggestion()).isEqualTo("Restart the VPN client.");
     }
 }

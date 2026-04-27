@@ -5,7 +5,10 @@ import {
   message, Skeleton, Alert, Divider, List, Avatar,
 } from 'antd';
 import { CheckCircleOutlined, UserAddOutlined, RobotOutlined } from '@ant-design/icons';
-import { getTicket, assignTicket, resolveTicket, aiSuggest, listTicketComments, addTicketComment } from '../../api';
+import {
+  getTicket, assignTicket, resolveTicket, aiSuggest,
+  getLatestAiSuggestion, listTicketComments, addTicketComment,
+} from '../../api';
 import { useAuthStore } from '../../stores/authStore';
 import StatusDot from '../../components/StatusDot';
 import type { TicketResponse, TicketPriority, TicketComment } from '../../types';
@@ -32,6 +35,7 @@ export default function TicketDetailPage() {
   const [resolving, setResolving] = useState(false);
   const [assigning, setAssigning] = useState(false);
   const [suggestion, setSuggestion] = useState<string | null>(null);
+  const [suggestionCreatedAt, setSuggestionCreatedAt] = useState<string | null>(null);
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [comments, setComments] = useState<TicketComment[]>([]);
   const [commentContent, setCommentContent] = useState('');
@@ -40,14 +44,26 @@ export default function TicketDetailPage() {
   useEffect(() => {
     if (!id) return;
     setLoading(true);
-    Promise.all([getTicket(Number(id)), listTicketComments(Number(id))])
-      .then(([ticketResponse, commentsResponse]) => {
+    setSuggestion(null);
+    setSuggestionCreatedAt(null);
+    const ticketId = Number(id);
+    const canViewAiSuggestion = role === 'ENGINEER' || role === 'ADMIN';
+    Promise.all([
+      getTicket(ticketId),
+      listTicketComments(ticketId),
+      canViewAiSuggestion ? getLatestAiSuggestion(ticketId).catch(() => null) : Promise.resolve(null),
+    ])
+      .then(([ticketResponse, commentsResponse, suggestionResponse]) => {
         setTicket(ticketResponse.data);
         setComments(commentsResponse.data);
+        if (suggestionResponse?.data.available && suggestionResponse.data.suggestion) {
+          setSuggestion(suggestionResponse.data.suggestion);
+          setSuggestionCreatedAt(suggestionResponse.data.createdAt);
+        }
       })
       .catch(() => message.error('工单不存在'))
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [id, role]);
 
   const handleAssign = async () => {
     if (!ticket) return;
@@ -86,9 +102,11 @@ export default function TicketDetailPage() {
     try {
       const { data } = await aiSuggest(ticket.id, ticket.title, ticket.description);
       setSuggestion(data.suggestion);
+      setSuggestionCreatedAt(new Date().toISOString());
     } catch (err: any) {
       const reason = err.response?.data?.message || err.response?.data?.error || err.message;
       setSuggestion(reason ? `AI诊断失败：${reason}` : 'AI暂时不可用');
+      setSuggestionCreatedAt(null);
     } finally {
       setSuggestLoading(false);
     }
@@ -278,37 +296,53 @@ export default function TicketDetailPage() {
 
             <div style={{ padding: 16 }}>
               {suggestion ? (
-                <div className="ai-markdown" style={{
-                  background: '#fff', border: '1px solid #f0f0f0', borderRadius: 6,
-                  padding: '12px 16px', fontSize: 13, lineHeight: 1.8,
-                  maxHeight: 600, overflowY: 'auto',
-                }}>
-                  <ReactMarkdown
-                    components={{
-                      h1: ({ children }) => <h3 style={{ fontSize: 16, fontWeight: 600, margin: '16px 0 8px', color: '#262626', borderBottom: '1px solid #f0f0f0', paddingBottom: 8 }}>{children}</h3>,
-                      h2: ({ children }) => <h4 style={{ fontSize: 15, fontWeight: 600, margin: '14px 0 6px', color: '#262626' }}>{children}</h4>,
-                      h3: ({ children }) => <h5 style={{ fontSize: 14, fontWeight: 600, margin: '12px 0 4px', color: '#722ed1' }}>{children}</h5>,
-                      p: ({ children }) => <p style={{ margin: '6px 0', color: '#595959' }}>{children}</p>,
-                      ul: ({ children }) => <ul style={{ paddingLeft: 20, margin: '4px 0' }}>{children}</ul>,
-                      ol: ({ children }) => <ol style={{ paddingLeft: 20, margin: '4px 0' }}>{children}</ol>,
-                      li: ({ children }) => <li style={{ marginBottom: 3, color: '#595959' }}>{children}</li>,
-                      strong: ({ children }) => <strong style={{ color: '#262626' }}>{children}</strong>,
-                      code: ({ children, className }) => {
-                        const isBlock = className?.includes('language-');
-                        return isBlock ? (
-                          <pre style={{ background: '#f5f5f5', padding: 12, borderRadius: 4, overflow: 'auto', fontSize: 12, margin: '8px 0' }}>
-                            <code>{children}</code>
-                          </pre>
-                        ) : (
-                          <code style={{ background: '#f5f5f5', padding: '1px 4px', borderRadius: 3, fontSize: 12, color: '#d4380d' }}>{children}</code>
-                        );
-                      },
-                      hr: () => <hr style={{ border: 'none', borderTop: '1px solid #f0f0f0', margin: '12px 0' }} />,
-                    }}
+                <>
+                  {suggestionCreatedAt && (
+                    <div style={{ color: '#8c8c8c', fontSize: 12, marginBottom: 8 }}>
+                      最近诊断：{dayjs(suggestionCreatedAt).format('YYYY-MM-DD HH:mm')}
+                    </div>
+                  )}
+                  <div className="ai-markdown" style={{
+                    background: '#fff', border: '1px solid #f0f0f0', borderRadius: 6,
+                    padding: '12px 16px', fontSize: 13, lineHeight: 1.8,
+                    maxHeight: 600, overflowY: 'auto',
+                  }}>
+                    <ReactMarkdown
+                      components={{
+                        h1: ({ children }) => <h3 style={{ fontSize: 16, fontWeight: 600, margin: '16px 0 8px', color: '#262626', borderBottom: '1px solid #f0f0f0', paddingBottom: 8 }}>{children}</h3>,
+                        h2: ({ children }) => <h4 style={{ fontSize: 15, fontWeight: 600, margin: '14px 0 6px', color: '#262626' }}>{children}</h4>,
+                        h3: ({ children }) => <h5 style={{ fontSize: 14, fontWeight: 600, margin: '12px 0 4px', color: '#722ed1' }}>{children}</h5>,
+                        p: ({ children }) => <p style={{ margin: '6px 0', color: '#595959' }}>{children}</p>,
+                        ul: ({ children }) => <ul style={{ paddingLeft: 20, margin: '4px 0' }}>{children}</ul>,
+                        ol: ({ children }) => <ol style={{ paddingLeft: 20, margin: '4px 0' }}>{children}</ol>,
+                        li: ({ children }) => <li style={{ marginBottom: 3, color: '#595959' }}>{children}</li>,
+                        strong: ({ children }) => <strong style={{ color: '#262626' }}>{children}</strong>,
+                        code: ({ children, className }) => {
+                          const isBlock = className?.includes('language-');
+                          return isBlock ? (
+                            <pre style={{ background: '#f5f5f5', padding: 12, borderRadius: 4, overflow: 'auto', fontSize: 12, margin: '8px 0' }}>
+                              <code>{children}</code>
+                            </pre>
+                          ) : (
+                            <code style={{ background: '#f5f5f5', padding: '1px 4px', borderRadius: 3, fontSize: 12, color: '#d4380d' }}>{children}</code>
+                          );
+                        },
+                        hr: () => <hr style={{ border: 'none', borderTop: '1px solid #f0f0f0', margin: '12px 0' }} />,
+                      }}
+                    >
+                      {suggestion}
+                    </ReactMarkdown>
+                  </div>
+                  <Button
+                    block
+                    style={{ marginTop: 12, background: '#722ed1', borderColor: '#722ed1', color: '#fff' }}
+                    onClick={handleGetSuggestion}
+                    loading={suggestLoading}
+                    icon={<RobotOutlined />}
                   >
-                    {suggestion}
-                  </ReactMarkdown>
-                </div>
+                    重新生成 AI 诊断
+                  </Button>
+                </>
               ) : (
                 <>
                   <div style={{ textAlign: 'center', padding: '16px 0 12px', color: '#8c8c8c', fontSize: 12 }}>

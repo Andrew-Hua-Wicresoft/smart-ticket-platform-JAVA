@@ -47,6 +47,12 @@ export interface AiSearchResult {
   similarity: number;
 }
 
+export interface AiSuggestionSnapshot {
+  available: boolean;
+  suggestion: string | null;
+  createdAt: string | null;
+}
+
 export interface KbArticle {
   id: number;
   title: string;

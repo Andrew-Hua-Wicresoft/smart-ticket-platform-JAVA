@@ -8,6 +8,7 @@ import { useDebouncedCallback } from '../../hooks/useDebounce';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
+const MIN_SELF_SERVICE_QUERY_LENGTH = 20;
 
 export default function TicketCreatePage() {
   const [form] = Form.useForm();
@@ -16,22 +17,22 @@ export default function TicketCreatePage() {
   const [searchLoading, setSearchLoading] = useState(false);
   const navigate = useNavigate();
 
-  // Debounced search: fires 500ms after user stops typing
   const debouncedSearch = useDebouncedCallback(async (description: string) => {
-    if (!description || description.length < 10) {
+    const query = `${form.getFieldValue('title') || ''}\n${description || ''}`.trim();
+    if (query.length < MIN_SELF_SERVICE_QUERY_LENGTH) {
       setSuggestions([]);
       return;
     }
     setSearchLoading(true);
     try {
-      const { data } = await aiSearch(description, 3);
+      const { data } = await aiSearch(query, 3);
       setSuggestions(data);
     } catch {
-      // AI search failure is non-blocking
+      // Self-service search is non-blocking; users can still submit tickets.
     } finally {
       setSearchLoading(false);
     }
-  }, 500);
+  }, 800);
 
   const handleDescriptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     debouncedSearch(e.target.value);
@@ -120,15 +121,15 @@ export default function TicketCreatePage() {
             display: 'flex', alignItems: 'center', gap: 8,
           }}>
             <SearchOutlined style={{ color: '#722ed1', fontSize: 16 }} />
-            <Text strong style={{ color: '#722ed1', fontSize: 14 }}>智能自助</Text>
-            <Text style={{ color: '#8c8c8c', fontSize: 11, marginLeft: 'auto' }}>知识库搜索</Text>
+            <Text strong style={{ color: '#722ed1', fontSize: 14 }}>自助知识库匹配</Text>
+            <Text style={{ color: '#8c8c8c', fontSize: 11, marginLeft: 'auto' }}>不调用大模型</Text>
           </div>
 
           <div style={{ padding: 16 }}>
             {searchLoading ? (
               <div style={{ textAlign: 'center', padding: 24 }}>
                 <Spin size="small" />
-                <div style={{ fontSize: 12, color: '#8c8c8c', marginTop: 8 }}>正在搜索知识库...</div>
+                <div style={{ fontSize: 12, color: '#8c8c8c', marginTop: 8 }}>正在匹配知识库...</div>
               </div>
             ) : suggestions.length > 0 ? (
               <>
@@ -138,7 +139,7 @@ export default function TicketCreatePage() {
                   display: 'flex', alignItems: 'center', gap: 6,
                 }}>
                   <CheckCircleOutlined />
-                  找到 {suggestions.length} 篇相关文章，也许能帮您解决问题：
+                  找到 {suggestions.length} 篇可能相关的知识库文章：
                 </div>
                 {suggestions.map((s, i) => (
                   <div
@@ -184,7 +185,7 @@ export default function TicketCreatePage() {
                   </div>
                 ))}
                 <div style={{ fontSize: 11, color: '#8c8c8c', textAlign: 'center', marginTop: 8 }}>
-                  点击文章即可标记为已解决
+                  点击文章即可标记为已解决，不会创建工单
                 </div>
               </>
             ) : (
@@ -192,7 +193,7 @@ export default function TicketCreatePage() {
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
                 description={
                   <Text style={{ fontSize: 12, color: '#8c8c8c' }}>
-                    输入问题描述后，将自动搜索相关知识库文章
+                    输入至少 {MIN_SELF_SERVICE_QUERY_LENGTH} 个字符后，将用本地向量和关键词匹配知识库
                   </Text>
                 }
               />
