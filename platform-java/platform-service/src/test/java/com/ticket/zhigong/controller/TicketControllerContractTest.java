@@ -1,9 +1,11 @@
 package com.ticket.zhigong.controller;
 
 import com.ticket.zhigong.dto.TicketCreateRequest;
+import com.ticket.zhigong.dto.TicketListFilter;
 import com.ticket.zhigong.dto.TicketResponse;
 import com.ticket.zhigong.entity.Ticket;
 import com.ticket.zhigong.entity.User;
+import com.ticket.zhigong.enums.TicketAssigneeScope;
 import com.ticket.zhigong.enums.TicketPriority;
 import com.ticket.zhigong.enums.TicketStatus;
 import com.ticket.zhigong.enums.UserRole;
@@ -11,17 +13,23 @@ import com.ticket.zhigong.service.TicketService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -80,6 +88,39 @@ class TicketControllerContractTest extends ControllerContractTestSupport {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value("OPEN"));
+    }
+
+    @Test
+    void listTicketsPassesFilterParametersToService() throws Exception {
+        authenticate(9001L, "admin1", "ROLE_ADMIN");
+        when(ticketService.listTickets(eq(9001L), eq(UserRole.ADMIN), any(), any(TicketListFilter.class)))
+                .thenReturn(new PageImpl<>(List.of(sampleTicketResponse()), PageRequest.of(0, 20), 1));
+
+        mockMvc.perform(get("/api/tickets")
+                        .param("status", "OPEN")
+                        .param("priority", "HIGH")
+                        .param("keyword", "vpn")
+                        .param("assignee", "UNASSIGNED"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].title").value("VPN 无法连接"));
+
+        ArgumentCaptor<TicketListFilter> filterCaptor = ArgumentCaptor.forClass(TicketListFilter.class);
+        verify(ticketService).listTickets(eq(9001L), eq(UserRole.ADMIN), any(), filterCaptor.capture());
+        TicketListFilter filter = filterCaptor.getValue();
+        assertThat(filter.getStatuses()).containsExactly(TicketStatus.OPEN);
+        assertThat(filter.getPriorities()).containsExactly(TicketPriority.HIGH);
+        assertThat(filter.getKeyword()).isEqualTo("vpn");
+        assertThat(filter.getAssignee()).isEqualTo(TicketAssigneeScope.UNASSIGNED);
+    }
+
+    @Test
+    void listTicketsRejectsInvalidFilterParameters() throws Exception {
+        authenticate(9001L, "admin1", "ROLE_ADMIN");
+
+        mockMvc.perform(get("/api/tickets").param("status", "BROKEN"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_FILTER"))
+                .andExpect(jsonPath("$.message").value("status 参数无效: BROKEN"));
     }
 
     @Test

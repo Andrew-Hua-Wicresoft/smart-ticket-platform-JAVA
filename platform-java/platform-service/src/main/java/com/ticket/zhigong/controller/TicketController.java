@@ -1,9 +1,14 @@
 package com.ticket.zhigong.controller;
 
 import com.ticket.zhigong.dto.TicketCreateRequest;
+import com.ticket.zhigong.dto.TicketListFilter;
 import com.ticket.zhigong.dto.TicketResolveRequest;
 import com.ticket.zhigong.dto.TicketResponse;
+import com.ticket.zhigong.enums.TicketAssigneeScope;
+import com.ticket.zhigong.enums.TicketPriority;
+import com.ticket.zhigong.enums.TicketStatus;
 import com.ticket.zhigong.enums.UserRole;
+import com.ticket.zhigong.exception.BusinessException;
 import com.ticket.zhigong.security.SecurityUtils;
 import com.ticket.zhigong.service.TicketService;
 import jakarta.validation.Valid;
@@ -14,6 +19,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Arrays;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/tickets")
@@ -33,10 +41,20 @@ public class TicketController {
     }
 
     @GetMapping
-    public ResponseEntity<Page<TicketResponse>> listTickets(@PageableDefault(size = 20) Pageable pageable) {
+    public ResponseEntity<Page<TicketResponse>> listTickets(@PageableDefault(size = 20) Pageable pageable,
+                                                            @RequestParam(required = false) String status,
+                                                            @RequestParam(required = false) String priority,
+                                                            @RequestParam(required = false) String keyword,
+                                                            @RequestParam(defaultValue = "ALL") String assignee) {
         Long userId = SecurityUtils.getCurrentUserId();
         UserRole role = getCurrentRole();
-        return ResponseEntity.ok(ticketService.listTickets(userId, role, pageable));
+        TicketListFilter filter = new TicketListFilter(
+                parseEnumList(status, TicketStatus.class, "status"),
+                parseEnumList(priority, TicketPriority.class, "priority"),
+                keyword,
+                parseEnum(assignee, TicketAssigneeScope.class, "assignee")
+        );
+        return ResponseEntity.ok(ticketService.listTickets(userId, role, pageable, filter));
     }
 
     @GetMapping("/{id}")
@@ -65,5 +83,29 @@ public class TicketController {
         if (SecurityUtils.hasRole("ADMIN")) return UserRole.ADMIN;
         if (SecurityUtils.hasRole("ENGINEER")) return UserRole.ENGINEER;
         return UserRole.CUSTOMER;
+    }
+
+    private <E extends Enum<E>> List<E> parseEnumList(String raw, Class<E> enumClass, String parameterName) {
+        if (raw == null || raw.isBlank()) {
+            return List.of();
+        }
+        return Arrays.stream(raw.split(","))
+                .map(String::trim)
+                .filter(value -> !value.isBlank())
+                .map(value -> parseEnum(value, enumClass, parameterName))
+                .distinct()
+                .toList();
+    }
+
+    private <E extends Enum<E>> E parseEnum(String raw, Class<E> enumClass, String parameterName) {
+        try {
+            return Enum.valueOf(enumClass, raw.trim().toUpperCase());
+        } catch (Exception ex) {
+            throw new BusinessException(
+                    "INVALID_FILTER",
+                    parameterName + " 参数无效: " + raw,
+                    HttpStatus.BAD_REQUEST
+            );
+        }
     }
 }
