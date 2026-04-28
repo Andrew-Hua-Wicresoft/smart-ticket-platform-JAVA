@@ -2,6 +2,8 @@ export type UserRole = 'CUSTOMER' | 'ENGINEER' | 'ADMIN';
 export type TicketStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
 export type TicketPriority = 'LOW' | 'MEDIUM' | 'HIGH';
 export type TicketAssigneeScope = 'ALL' | 'UNASSIGNED' | 'ME';
+export type TicketSortField = 'priority' | 'title' | 'status' | 'customer.name' | 'assignedEngineer.name' | 'createdAt';
+export type TicketSortDirection = 'asc' | 'desc';
 export type KbArticleStatus = 'DRAFT' | 'PUBLISHED';
 
 export interface TicketListFilters {

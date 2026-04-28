@@ -4,6 +4,7 @@ import type {
   KbArticle, AdminStats, Page, TicketComment,
   NotificationItem, UnreadNotificationCount, AuditLog,
   AiSuggestionSnapshot, TicketListFilters,
+  TicketSortDirection, TicketSortField,
 } from '../types';
 
 // Auth
@@ -23,9 +24,14 @@ function serializeTicketFilters(filters?: TicketListFilters) {
   };
 }
 
-export const listTickets = (page = 0, size = 20, filters?: TicketListFilters) =>
+export const listTickets = (
+  page = 0,
+  size = 20,
+  filters?: TicketListFilters,
+  sort: `${TicketSortField},${TicketSortDirection}` = 'createdAt,desc',
+) =>
   client.get<Page<TicketResponse>>('/tickets', {
-    params: { page, size, sort: 'createdAt,desc', ...serializeTicketFilters(filters) },
+    params: { page, size, sort, ...serializeTicketFilters(filters) },
   });
 
 export const getTicket = (id: number) =>
