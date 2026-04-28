@@ -5,6 +5,7 @@ import { SendOutlined, SearchOutlined, CheckCircleOutlined } from '@ant-design/i
 import { createTicket, aiSearch, logDeflection } from '../../api';
 import type { AiSearchResult } from '../../types';
 import { useDebouncedCallback } from '../../hooks/useDebounce';
+import { useAuthStore } from '../../stores/authStore';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -25,6 +26,7 @@ export default function TicketCreatePage() {
   const [searchLoading, setSearchLoading] = useState(false);
   const searchRequestSeq = useRef(0);
   const navigate = useNavigate();
+  const role = useAuthStore((state) => state.role);
   const title = Form.useWatch('title', form) || '';
   const description = Form.useWatch('description', form) || '';
 
@@ -71,7 +73,7 @@ export default function TicketCreatePage() {
     try {
       await logDeflection(result.kbId, description);
       message.success('问题已解决！感谢使用自助服务。');
-      navigate('/my-tickets');
+      navigate(role === 'ADMIN' ? '/tickets' : '/my-tickets');
     } catch {
       message.info('已记录。');
     }
@@ -82,7 +84,7 @@ export default function TicketCreatePage() {
     try {
       const { data } = await createTicket(values.title, values.description);
       message.success(`工单 #${data.id} 创建成功`);
-      navigate('/my-tickets');
+      navigate(role === 'ADMIN' ? '/tickets' : '/my-tickets');
     } catch (err) {
       message.error(getApiErrorMessage(err, '创建失败'));
     } finally {

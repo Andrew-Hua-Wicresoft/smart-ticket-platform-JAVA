@@ -29,7 +29,7 @@ interface MenuItem {
 }
 
 const allMenuItems: MenuItem[] = [
-  { key: '/tickets/create', icon: <PlusCircleOutlined />, label: '提交工单', group: '工单管理', roles: ['CUSTOMER'] },
+  { key: '/tickets/create', icon: <PlusCircleOutlined />, label: '提交工单', group: '工单管理', roles: ['CUSTOMER', 'ADMIN'] },
   { key: '/tickets', icon: <FileTextOutlined />, label: '工单队列', group: '工单管理', roles: ['ENGINEER', 'ADMIN'] },
   { key: '/my-tickets', icon: <FileTextOutlined />, label: '我的工单', group: '工单管理', roles: ['CUSTOMER', 'ENGINEER'] },
   { key: '/kb', icon: <BookOutlined />, label: '知识库', group: '知识库', roles: ['CUSTOMER', 'ENGINEER', 'ADMIN'] },
