@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+images:
+  - name: smart-ticket-platform/frontend
+    newTag: dev
+  - name: smart-ticket-platform/gateway
+    newTag: dev
+  - name: smart-ticket-platform/platform-service
+    newTag: dev
+  - name: smart-ticket-platform/ai-service
+    newTag: dev

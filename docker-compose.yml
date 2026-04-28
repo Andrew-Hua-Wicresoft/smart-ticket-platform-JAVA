@@ -28,6 +28,39 @@ services:
       timeout: 5s
       retries: 5
 
+  nacos:
+    image: nacos/nacos-server:v3.0.3
+    profiles:
+      - governance
+    environment:
+      MODE: standalone
+      PREFER_HOST_MODE: hostname
+      NACOS_AUTH_ENABLE: "false"
+      JVM_XMS: 512m
+      JVM_XMX: 512m
+      JVM_XMN: 256m
+    ports:
+      - "8848:8848"
+      - "9848:9848"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8848/nacos/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  sentinel-dashboard:
+    image: bladex/sentinel-dashboard:1.8.9
+    profiles:
+      - governance
+    ports:
+      - "8858:8858"
+      - "8719:8719"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8858 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
   ai-service:
     build:
       context: ./ai-service
@@ -67,6 +100,11 @@ services:
       AI_SERVICE_URL: http://ai-service:8100
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_PORT: 5672
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-}
+      NACOS_SERVER_ADDR: ${NACOS_SERVER_ADDR:-nacos:8848}
+      NACOS_NAMESPACE: ${NACOS_NAMESPACE:-}
+      NACOS_GROUP: ${NACOS_GROUP:-DEFAULT_GROUP}
+      SENTINEL_DASHBOARD: ${SENTINEL_DASHBOARD:-sentinel-dashboard:8858}
     depends_on:
       postgres:
         condition: service_healthy
@@ -84,8 +122,24 @@ services:
     environment:
       PLATFORM_SERVICE_URL: http://platform-service:8081
       SPRING_CLOUD_GATEWAY_SERVER_WEBFLUX_HTTPCLIENT_RESPONSE_TIMEOUT: 45s
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-}
+      NACOS_SERVER_ADDR: ${NACOS_SERVER_ADDR:-nacos:8848}
+      NACOS_NAMESPACE: ${NACOS_NAMESPACE:-}
+      NACOS_GROUP: ${NACOS_GROUP:-DEFAULT_GROUP}
+      SENTINEL_DASHBOARD: ${SENTINEL_DASHBOARD:-sentinel-dashboard:8858}
     depends_on:
       platform-service:
+        condition: service_started
+
+  frontend:
+    build:
+      context: ./frontend
+    profiles:
+      - frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      gateway:
         condition: service_started
 
 volumes:

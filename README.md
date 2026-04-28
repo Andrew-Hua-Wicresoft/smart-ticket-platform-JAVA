@@ -2,7 +2,7 @@
 
 AI-assisted internal IT service desk platform built with a hybrid Java + Python architecture.
 
-The current codebase is at Phase 3 of the migration plan: React calls a Java Gateway, business domains are owned by the Java Platform Service, and Python is kept as an internal AI service for LLM and embedding workflows. Phase 4 governance work, including Nacos, Sentinel, and Kubernetes manifests, is intentionally not started yet.
+The current codebase is entering Phase 4 of the migration plan: React calls a Java Gateway, business domains are owned by the Java Platform Service, Python is kept as an internal AI service, and the repository now includes opt-in governance and deployment assets for Nacos, Sentinel, Kubernetes, Helm, and CI/CD.
 
 Chinese documentation: [README_ZH.md](README_ZH.md)
 
@@ -14,7 +14,7 @@ Chinese documentation: [README_ZH.md](README_ZH.md)
 - Customer self-service is kept low-cost by searching the local knowledge base before ticket submission without automatic LLM calls.
 - Admins can submit tickets, review audit/statistics pages, and manage knowledge base drafts.
 - Knowledge base articles are stored as Markdown and rendered as Markdown in the UI; AI-generated drafts use CommonMark and can be previewed before publishing.
-- Phase 4 governance is still pending: Nacos, Sentinel, Kubernetes/Helm, CI/CD hardening, and production deployment templates are not in place yet.
+- Phase 4 governance has started: Nacos/Sentinel are available through an opt-in Compose profile, Kubernetes/Kustomize and Helm skeletons are present, and GitHub Actions cover CI plus container image builds.
 
 ## Capabilities
 
@@ -85,6 +85,30 @@ Chinese documentation: [README_ZH.md](README_ZH.md)
 | `postgres` | Shared PostgreSQL 16 instance with pgvector |
 | `rabbitmq` | Asynchronous ticket and AI workflow events |
 
+## Phase 4 Governance
+
+### Why Phase 4 Exists
+
+Phase 4 is the operational hardening layer for the Phase 1-3 architecture. The platform already has the core product path in place: React reaches the system through the Java Gateway, Java owns the business domains, Python is isolated as the AI service, RabbitMQ carries asynchronous AI events, and PostgreSQL/pgvector stores business and retrieval data. Phase 4 makes that architecture safe to run beyond a single developer machine.
+
+The goal is not to split the application into more services yet. The goal is to make the existing service boundaries deployable, observable, and governable:
+
+- Nacos provides a path for service discovery and centralized configuration once the environment grows beyond static Compose hostnames.
+- Sentinel provides a path for traffic protection, rate limiting, and circuit breaking around the Gateway, platform APIs, and AI-dependent flows.
+- Actuator and Prometheus metrics make service health, readiness, liveness, and runtime behavior visible to operators.
+- Kubernetes and Helm skeletons create a repeatable deployment shape before production-specific infrastructure decisions are made.
+- GitHub Actions add an automated quality gate for Java tests, frontend builds, AI service syntax checks, and container image builds.
+- Branch protection guidance defines the checks that should block unsafe changes from landing on `main`.
+
+These pieces are intentionally optional in local development. Default Compose remains lightweight; governance is enabled only through the `governance` profile. This keeps daily development fast while giving the project a clear path toward staging, production, and later commercial hardening.
+
+- Spring Cloud Alibaba is aligned with Spring Boot 3.5 and Spring Cloud 2025.0 through the managed `2025.0.0.0` dependency set.
+- Nacos discovery/config and Sentinel traffic governance are included in the Java modules, but disabled by default for local development.
+- Enable governance with `SPRING_PROFILES_ACTIVE=governance` and the Compose `governance` profile.
+- Actuator health, readiness, liveness, metrics, and Prometheus endpoints are exposed for the Java services.
+- Kubernetes manifests live under `infra/k8s`; the Helm skeleton lives under `infra/helm/smart-ticket-platform`.
+- Built-in Postgres, RabbitMQ, Nacos, and Sentinel manifests are development scaffolding. Use managed or dedicated production services before a real commercial rollout.
+
 ## Event Model
 
 Phase 3 uses RabbitMQ as the asynchronous backbone for AI and knowledge workflows.
@@ -125,13 +149,13 @@ Phase 3 uses RabbitMQ as the asynchronous backbone for AI and knowledge workflow
 | Layer | Technology |
 | --- | --- |
 | Frontend | React 19, TypeScript 5.9, Ant Design 6, Zustand 5, Vite 8 |
-| Gateway | Spring Cloud Gateway, Spring Boot 3.5 |
-| Java platform | Spring Boot 3.5, Java 17, Spring Data JPA, Spring Security, JWT, RabbitMQ |
+| Gateway | Spring Cloud Gateway, Spring Boot 3.5, Spring Cloud Alibaba Nacos/Sentinel |
+| Java platform | Spring Boot 3.5, Java 17, Spring Data JPA, Spring Security, JWT, RabbitMQ, Spring Cloud Alibaba Nacos/Sentinel |
 | AI service | Python 3.11, FastAPI, LangChain, SQLAlchemy, sentence-transformers |
 | Database | PostgreSQL 16, pgvector, HNSW index, `vector(384)` |
 | Messaging | RabbitMQ 4.1 management image |
-| Infrastructure | Docker Compose, Maven, future Kubernetes manifests |
-| Future governance | Nacos, Sentinel, Kubernetes, Helm skeletons in Phase 4 |
+| Infrastructure | Docker Compose, Maven, Kubernetes/Kustomize, Helm skeleton, GitHub Actions |
+| Governance | Nacos 3.0.3, Sentinel 1.8.9 dashboard, Actuator, Prometheus metrics |
 
 ## Quick Start
 
@@ -221,6 +245,31 @@ docker compose up --build
 
 This starts PostgreSQL, RabbitMQ, AI service, platform service, and gateway. The frontend is usually run separately with `npm run dev` for local development.
 
+### Governance Compose Profile
+
+```bash
+SPRING_PROFILES_ACTIVE=governance \
+docker compose --profile governance --profile frontend up --build
+```
+
+Useful local URLs:
+
+- Gateway: http://localhost:8080
+- Frontend container: http://localhost:5173
+- Nacos: http://localhost:8848/nacos
+- Sentinel dashboard: http://localhost:8858
+
+Leave `SPRING_PROFILES_ACTIVE` empty for the lighter default development mode.
+
+### Kubernetes And Helm Skeletons
+
+```bash
+kubectl apply -k infra/k8s/overlays/dev
+helm template smart-ticket infra/helm/smart-ticket-platform
+```
+
+Before applying to a shared cluster, replace `infra/k8s/base/secret.example.yaml` with a real Secret or external secret manager, set production image tags, and decide whether Postgres/RabbitMQ/Nacos/Sentinel are managed outside the chart.
+
 ## Demo Accounts
 
 All demo accounts use password `demo123`.
@@ -300,7 +349,7 @@ docker compose build ai-service
 .
 |-- ai-service/                       # FastAPI AI and embedding service
 |-- frontend/                         # React application
-|-- infra/                            # Infrastructure notes and future deployment assets
+|-- infra/                            # Compose, Kubernetes, Helm, and governance notes
 |-- platform-java/
 |   |-- gateway/                      # Spring Cloud Gateway
 |   `-- platform-service/             # Spring Boot business platform
@@ -319,14 +368,15 @@ docker compose build ai-service
 - LLM output is sanitized before persistence.
 - AI interactions and business changes are logged for auditability.
 - Secrets must stay in `.env` or deployment secret stores, never in Git.
+- Keep Nacos and Sentinel dashboards on an internal network; do not expose them publicly.
 
 ## Roadmap
 
 - Phase 0: MVP baseline stabilization.
 - Phase 1: Java foundation and unified Gateway.
 - Phase 2: Business domain migration to Java.
-- Phase 3: AI service boundary and RabbitMQ-driven asynchronous workflows. Current implementation is in this phase.
-- Phase 4: Nacos, Sentinel, Kubernetes, CI/CD, and deployment hardening. Not started.
+- Phase 3: AI service boundary and RabbitMQ-driven asynchronous workflows.
+- Phase 4: Nacos, Sentinel, Kubernetes, CI/CD, and deployment hardening. Current implementation is in this phase.
 
 ## License
 

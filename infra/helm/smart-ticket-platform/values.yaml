@@ -1,0 +1,71 @@
+global:
+  imagePullPolicy: IfNotPresent
+
+imageRegistry: smart-ticket-platform
+
+frontend:
+  enabled: true
+  image: frontend
+  tag: dev
+  replicas: 2
+  port: 80
+  healthPath: /
+
+gateway:
+  enabled: true
+  image: gateway
+  tag: dev
+  replicas: 2
+  port: 8080
+  healthPath: /actuator/health/readiness
+
+platformService:
+  enabled: true
+  image: platform-service
+  tag: dev
+  replicas: 2
+  port: 8081
+  healthPath: /actuator/health/readiness
+
+aiService:
+  enabled: true
+  image: ai-service
+  tag: dev
+  replicas: 1
+  port: 8100
+  healthPath: /health
+
+governance:
+  enabled: true
+  nacosServerAddr: nacos:8848
+  nacosNamespace: ""
+  nacosGroup: DEFAULT_GROUP
+  sentinelDashboard: sentinel-dashboard:8858
+
+external:
+  postgresUrl: jdbc:postgresql://postgres:5432/zhigong
+  postgresDb: zhigong
+  postgresUser: zhigong
+  rabbitmqHost: rabbitmq
+  rabbitmqPort: "5672"
+  aiServiceUrl: http://ai-service:8100
+  platformServiceUrl: http://platform-service:8081
+
+secrets:
+  create: false
+  name: smart-ticket-secrets
+  postgresPassword: change-me
+  jwtSecret: change-me-generate-with-openssl-rand-base64-48
+  aiApiKey: ""
+
+ai:
+  provider: deepseek
+  model: deepseek-v4-pro
+  baseUrl: https://api.deepseek.com
+  requestTimeoutSeconds: "45"
+  embeddingModel: sentence-transformers/all-MiniLM-L6-v2
+
+ingress:
+  enabled: true
+  className: nginx
+  host: smart-ticket.local

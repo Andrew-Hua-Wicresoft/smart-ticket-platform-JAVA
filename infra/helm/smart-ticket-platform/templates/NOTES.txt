@@ -1,0 +1,10 @@
+Smart Ticket Platform Helm skeleton installed.
+
+Next checks:
+  kubectl get pods
+  kubectl port-forward svc/frontend 8088:80
+
+Production notes:
+  - Replace the example Secret with your cluster secret manager.
+  - Prefer managed PostgreSQL and managed RabbitMQ for production.
+  - Keep Nacos and Sentinel behind internal network access.

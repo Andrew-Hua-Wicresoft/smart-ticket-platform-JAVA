@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: smart-ticket-config
+  labels:
+    {{- include "smart-ticket.labels" . | nindent 4 }}
+data:
+  SPRING_DATASOURCE_URL: {{ .Values.external.postgresUrl | quote }}
+  SPRING_DATASOURCE_USERNAME: {{ .Values.external.postgresUser | quote }}
+  POSTGRES_DB: {{ .Values.external.postgresDb | quote }}
+  POSTGRES_USER: {{ .Values.external.postgresUser | quote }}
+  SQL_INIT_MODE: "never"
+  RABBITMQ_HOST: {{ .Values.external.rabbitmqHost | quote }}
+  RABBITMQ_PORT: {{ .Values.external.rabbitmqPort | quote }}
+  AI_SERVICE_URL: {{ .Values.external.aiServiceUrl | quote }}
+  PLATFORM_SERVICE_URL: {{ .Values.external.platformServiceUrl | quote }}
+  SPRING_PROFILES_ACTIVE: {{ ternary "governance" "" .Values.governance.enabled | quote }}
+  NACOS_SERVER_ADDR: {{ .Values.governance.nacosServerAddr | quote }}
+  NACOS_NAMESPACE: {{ .Values.governance.nacosNamespace | quote }}
+  NACOS_GROUP: {{ .Values.governance.nacosGroup | quote }}
+  SENTINEL_DASHBOARD: {{ .Values.governance.sentinelDashboard | quote }}
+  AI_PROVIDER: {{ .Values.ai.provider | quote }}
+  AI_MODEL: {{ .Values.ai.model | quote }}
+  AI_BASE_URL: {{ .Values.ai.baseUrl | quote }}
+  AI_REQUEST_TIMEOUT_SECONDS: {{ .Values.ai.requestTimeoutSeconds | quote }}
+  EMBEDDING_MODEL: {{ .Values.ai.embeddingModel | quote }}
