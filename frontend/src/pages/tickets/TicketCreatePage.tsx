@@ -1,24 +1,36 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Form, Input, Button, Typography, message, Spin, Empty } from 'antd';
 import { SendOutlined, SearchOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { createTicket, aiSearch, logDeflection } from '../../api';
 import type { AiSearchResult } from '../../types';
 import { useDebouncedCallback } from '../../hooks/useDebounce';
+import { useAuthStore } from '../../stores/authStore';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
 const MIN_SELF_SERVICE_QUERY_LENGTH = 20;
+
+function getApiErrorMessage(error: unknown, fallback: string) {
+  if (typeof error !== 'object' || error === null || !('response' in error)) {
+    return fallback;
+  }
+  const response = (error as { response?: { data?: { message?: unknown } } }).response;
+  return typeof response?.data?.message === 'string' ? response.data.message : fallback;
+}
 
 export default function TicketCreatePage() {
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
   const [suggestions, setSuggestions] = useState<AiSearchResult[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  const searchRequestSeq = useRef(0);
   const navigate = useNavigate();
+  const role = useAuthStore((state) => state.role);
+  const title = Form.useWatch('title', form) || '';
+  const description = Form.useWatch('description', form) || '';
 
-  const debouncedSearch = useDebouncedCallback(async (description: string) => {
-    const query = `${form.getFieldValue('title') || ''}\n${description || ''}`.trim();
+  const [debouncedSearch, cancelDebouncedSearch] = useDebouncedCallback(async (query: string, requestSeq: number) => {
     if (query.length < MIN_SELF_SERVICE_QUERY_LENGTH) {
       setSuggestions([]);
       return;
@@ -26,24 +38,42 @@ export default function TicketCreatePage() {
     setSearchLoading(true);
     try {
       const { data } = await aiSearch(query, 3);
-      setSuggestions(data);
+      if (requestSeq === searchRequestSeq.current) {
+        setSuggestions(data);
+      }
     } catch {
       // Self-service search is non-blocking; users can still submit tickets.
+      if (requestSeq === searchRequestSeq.current) {
+        setSuggestions([]);
+      }
     } finally {
-      setSearchLoading(false);
+      if (requestSeq === searchRequestSeq.current) {
+        setSearchLoading(false);
+      }
     }
   }, 800);
 
-  const handleDescriptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    debouncedSearch(e.target.value);
-  };
+  useEffect(() => {
+    const query = `${title}\n${description}`.trim();
+    const requestSeq = searchRequestSeq.current + 1;
+    searchRequestSeq.current = requestSeq;
+
+    if (query.length < MIN_SELF_SERVICE_QUERY_LENGTH) {
+      cancelDebouncedSearch();
+      setSuggestions([]);
+      setSearchLoading(false);
+      return;
+    }
+
+    debouncedSearch(query, requestSeq);
+  }, [title, description, debouncedSearch, cancelDebouncedSearch]);
 
   const handleDeflection = async (result: AiSearchResult) => {
     const description = form.getFieldValue('description');
     try {
       await logDeflection(result.kbId, description);
       message.success('问题已解决！感谢使用自助服务。');
-      navigate('/my-tickets');
+      navigate(role === 'ADMIN' ? '/tickets' : '/my-tickets');
     } catch {
       message.info('已记录。');
     }
@@ -54,9 +84,9 @@ export default function TicketCreatePage() {
     try {
       const { data } = await createTicket(values.title, values.description);
       message.success(`工单 #${data.id} 创建成功`);
-      navigate('/my-tickets');
-    } catch (err: any) {
-      message.error(err.response?.data?.message || '创建失败');
+      navigate(role === 'ADMIN' ? '/tickets' : '/my-tickets');
+    } catch (err) {
+      message.error(getApiErrorMessage(err, '创建失败'));
     } finally {
       setSubmitting(false);
     }
@@ -92,7 +122,6 @@ export default function TicketCreatePage() {
               <TextArea
                 rows={6}
                 placeholder="详细描述您的问题，包括错误信息、操作步骤等（10-5000字）"
-                onChange={handleDescriptionChange}
                 showCount
                 maxLength={5000}
               />

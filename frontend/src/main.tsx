@@ -54,7 +54,7 @@ function App() {
               <ProtectedRoute roles={['ENGINEER', 'ADMIN']}><TicketListPage /></ProtectedRoute>
             } />
             <Route path="tickets/create" element={
-              <ProtectedRoute roles={['CUSTOMER']}><TicketCreatePage /></ProtectedRoute>
+              <ProtectedRoute roles={['CUSTOMER', 'ADMIN']}><TicketCreatePage /></ProtectedRoute>
             } />
             <Route path="tickets/:id" element={<TicketDetailPage />} />
             <Route path="my-tickets" element={

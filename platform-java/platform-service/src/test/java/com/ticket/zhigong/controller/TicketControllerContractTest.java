@@ -65,6 +65,24 @@ class TicketControllerContractTest extends ControllerContractTestSupport {
     }
 
     @Test
+    void createTicketAllowsAdminActor() throws Exception {
+        authenticate(9001L, "admin1", "ROLE_ADMIN");
+
+        TicketCreateRequest request = new TicketCreateRequest();
+        request.setTitle("管理员提交设备故障");
+        request.setDescription("管理员巡检时发现会议室投影设备无法开机，需要工程师排查。");
+
+        when(ticketService.createTicket(any(TicketCreateRequest.class), eq(9001L)))
+                .thenReturn(sampleTicketResponse());
+
+        mockMvc.perform(post("/api/tickets")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("OPEN"));
+    }
+
+    @Test
     void createTicketRejectsShortTitle() throws Exception {
         authenticate(2001L, "customer1", "ROLE_CUSTOMER");
 
