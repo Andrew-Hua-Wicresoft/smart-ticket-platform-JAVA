@@ -6,12 +6,22 @@
 
 英文文档：[README.md](README.md)
 
+## 当前进度
+
+- 迁移计划已完成到 Phase 3：Java Gateway 是唯一公共 API 入口，Java Platform Service 持有业务域，Python 仅保留内部 AI 与向量化能力。
+- AI 工作流已具备 DeepSeek 兼容配置、工单 AI 诊断持久化、知识库优先的修复建议、本地 `all-MiniLM-L6-v2` 向量化、pgvector/HNSW 检索，以及向量 + 关键词的轻量混合召回。
+- RabbitMQ 已用于非阻塞 AI 流程：工单创建触发优先级分析，工单解决触发 AI 知识库草稿生成。
+- 用户自助服务以低成本为原则：提交工单前优先检索本地知识库，不自动调用大模型。
+- 管理员可以提交工单、查看统计和审计日志，并管理知识库草稿。
+- 知识库文章以 Markdown 原文存储，前端按 Markdown 渲染；AI 生成的草稿使用 CommonMark，可在发布前预览。
+- Phase 4 治理能力尚未开始：Nacos、Sentinel、Kubernetes/Helm、CI/CD 强化和生产部署模板仍待补充。
+
 ## 核心能力
 
 ### 普通用户
 
 - 通过引导式表单提交 IT 支持工单。
-- 创建工单前使用 AI 检索知识库，优先推荐已有解决方案。
+- 创建工单前使用低成本本地混合检索知识库，优先推荐已有解决方案。
 - 查看自己的工单和状态变化。
 - 接收工单状态变更通知。
 
@@ -25,9 +35,10 @@
 
 ### 管理员
 
+- 通过同一套引导式流程提交工单。
 - 查看工单和知识库统计。
 - 查看审计日志。
-- 管理知识库草稿和已发布文章。
+- 管理 Markdown 知识库草稿和已发布文章。
 - 与前端一样通过统一 Java API 入口访问系统。
 
 ## 架构
@@ -87,10 +98,13 @@ Phase 3 使用 RabbitMQ 作为 AI 与知识库流程的异步骨架。
 ## 大模型与向量化
 
 - 大模型配置保持服务商兼容，当前支持 DeepSeek 风格、OpenAI 风格和 Anthropic 风格的环境变量配置。
+- 默认 DeepSeek 配置使用 OpenAI-compatible API：`AI_PROVIDER=deepseek`、`AI_MODEL=deepseek-v4-pro`、`AI_BASE_URL=https://api.deepseek.com`。
+- AI 修复建议采用知识库优先提示词：可靠命中必须引用文章 ID/标题，命中不足时必须明确说明。
 - Python 服务隔离 AI 核心逻辑，不直接持有业务主流程。
 - 向量化模型使用 `sentence-transformers/all-MiniLM-L6-v2`。
 - 向量维度为 384。
 - 知识库相似度检索使用 pgvector HNSW 索引。
+- 内部知识库检索使用轻量混合召回：pgvector 候选 + 关键词候选 + 领域关键词加权 + 去重和分数过滤。
 
 ## 技术栈
 
@@ -127,10 +141,11 @@ JWT_SECRET=<base64-or-long-random-secret>
 可选的大模型变量：
 
 ```bash
-LLM_PROVIDER=deepseek
-LLM_MODEL=deepseek-chat
-LLM_API_KEY=<your-key>
-LLM_BASE_URL=https://api.deepseek.com
+AI_PROVIDER=deepseek
+AI_MODEL=deepseek-v4-pro
+AI_API_KEY=<your-key>
+AI_BASE_URL=https://api.deepseek.com
+AI_REQUEST_TIMEOUT_SECONDS=45
 ```
 
 不要提交 `.env`。
@@ -227,6 +242,7 @@ docker compose up --build
 - `POST /api/v1/ai/search`
 - `POST /api/v1/ai/refine`
 - `POST /api/v1/ai/suggest`
+- `GET /api/v1/ai/suggest/latest`
 - `POST /api/v1/ai/similar`
 
 ### 知识库
@@ -294,8 +310,8 @@ docker compose build ai-service
 - Phase 0：MVP 基线稳定。
 - Phase 1：Java 基座和统一 Gateway。
 - Phase 2：业务域迁移到 Java。
-- Phase 3：AI 服务边界和 RabbitMQ 异步工作流。
-- Phase 4：Nacos、Sentinel、Kubernetes、CI/CD 和部署强化。
+- Phase 3：AI 服务边界和 RabbitMQ 异步工作流。当前实现处于这一阶段。
+- Phase 4：Nacos、Sentinel、Kubernetes、CI/CD 和部署强化。尚未开始。
 
 ## 许可证
 
