@@ -85,7 +85,7 @@ export default function TicketCreatePage() {
       const { data } = await createTicket(values.title, values.description);
       message.success(`工单 #${data.id} 创建成功`);
       navigate(role === 'ADMIN' ? '/tickets' : '/my-tickets');
-    } catch (err) {
+    } catch (err: unknown) {
       message.error(getApiErrorMessage(err, '创建失败'));
     } finally {
       setSubmitting(false);

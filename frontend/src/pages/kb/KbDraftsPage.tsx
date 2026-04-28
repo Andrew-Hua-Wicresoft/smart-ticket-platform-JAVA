@@ -2,11 +2,20 @@ import { useEffect, useState } from 'react';
 import { Alert, Card, Table, Button, Typography, message, Modal, Input, Space, Skeleton } from 'antd';
 import { CheckOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { listDraftArticles, publishArticle, updateArticle, deleteArticle } from '../../api';
+import MarkdownContent from '../../components/MarkdownContent';
 import type { KbArticle } from '../../types';
 import dayjs from 'dayjs';
 
-const { Title, Paragraph } = Typography;
+const { Title, Text } = Typography;
 const { TextArea } = Input;
+
+function getApiErrorMessage(error: unknown, fallback: string) {
+  if (typeof error !== 'object' || error === null || !('response' in error)) {
+    return fallback;
+  }
+  const response = (error as { response?: { data?: { message?: unknown } } }).response;
+  return typeof response?.data?.message === 'string' ? response.data.message : fallback;
+}
 
 export default function KbDraftsPage() {
   const [articles, setArticles] = useState<KbArticle[]>([]);
@@ -38,8 +47,8 @@ export default function KbDraftsPage() {
       await publishArticle(id);
       message.success('文章已发布');
       fetchDrafts();
-    } catch (err: any) {
-      message.error(err.response?.data?.message || '发布失败');
+    } catch (err: unknown) {
+      message.error(getApiErrorMessage(err, '发布失败'));
     }
   };
 
@@ -68,8 +77,8 @@ export default function KbDraftsPage() {
       message.success('文章已更新');
       setEditModal(null);
       fetchDrafts();
-    } catch (err: any) {
-      message.error(err.response?.data?.message || '更新失败');
+    } catch (err: unknown) {
+      message.error(getApiErrorMessage(err, '更新失败'));
     }
   };
 
@@ -82,7 +91,7 @@ export default function KbDraftsPage() {
       render: (t: string) => dayjs(t).format('YYYY-MM-DD HH:mm') },
     {
       title: '操作', key: 'actions', width: 200,
-      render: (_: any, record: KbArticle) => (
+      render: (_: unknown, record: KbArticle) => (
         <Space>
           <Button size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>编辑</Button>
           <Button size="small" type="primary" icon={<CheckOutlined />} onClick={() => handlePublish(record.id)}>发布</Button>
@@ -103,9 +112,7 @@ export default function KbDraftsPage() {
             pagination={{ total, showTotal: (t) => `共 ${t} 篇待审核` }}
             expandable={{
               expandedRowRender: (record) => (
-                <Paragraph style={{ whiteSpace: 'pre-wrap', maxHeight: 300, overflow: 'auto' }}>
-                  {record.content}
-                </Paragraph>
+                <MarkdownContent content={record.content} maxHeight={320} />
               ),
             }}
           />
@@ -123,6 +130,10 @@ export default function KbDraftsPage() {
           style={{ marginBottom: 12 }} placeholder="标题" />
         <TextArea rows={12} value={editContent} onChange={(e) => setEditContent(e.target.value)}
           placeholder="内容" />
+        <Text type="secondary" style={{ display: 'block', margin: '16px 0 8px' }}>Markdown 预览</Text>
+        <div style={{ border: '1px solid #f0f0f0', borderRadius: 6, padding: 12 }}>
+          <MarkdownContent content={editContent || '暂无内容'} maxHeight={260} />
+        </div>
       </Modal>
     </div>
   );

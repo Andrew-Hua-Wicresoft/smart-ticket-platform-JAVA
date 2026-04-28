@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react';
 import { Alert, Card, Typography, Input, Empty, Skeleton } from 'antd';
 import { BookOutlined, SearchOutlined } from '@ant-design/icons';
 import { listPublishedArticles } from '../../api';
+import MarkdownContent from '../../components/MarkdownContent';
 import type { KbArticle } from '../../types';
 import dayjs from 'dayjs';
 
-const { Title, Text, Paragraph } = Typography;
+const { Title, Text } = Typography;
 
 export default function KbListPage() {
   const [articles, setArticles] = useState<KbArticle[]>([]);
@@ -52,12 +53,9 @@ export default function KbListPage() {
                   <BookOutlined style={{ fontSize: 20, color: article.sourceTicketId ? '#722ed1' : '#1677ff', marginTop: 2 }} />
                   <div style={{ flex: 1 }}>
                     <Title level={5} style={{ margin: 0 }}>{article.title}</Title>
-                    <Paragraph
-                      ellipsis={{ rows: 3, expandable: true, symbol: '展开' }}
-                      style={{ marginTop: 8, whiteSpace: 'pre-wrap' }}
-                    >
-                      {article.content}
-                    </Paragraph>
+                    <div style={{ marginTop: 8 }}>
+                      <MarkdownContent content={article.content} maxHeight={240} />
+                    </div>
                     <Text type="secondary" style={{ fontSize: 12 }}>
                       {dayjs(article.createdAt).format('YYYY-MM-DD')}
                       {article.createdByName && ` · ${article.createdByName}`}
