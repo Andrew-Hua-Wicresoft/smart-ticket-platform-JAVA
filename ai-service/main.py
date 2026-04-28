@@ -627,7 +627,9 @@ def kb_draft_generate(request: TextGenerationRequest) -> AiResponse:
     )
     return _generate_text(
         "kb-draft-generate",
-        "你是 IT 知识库作者。请基于工单标题、问题描述和解决方案，生成结构化中文知识库草稿，包含问题描述、解决方案、注意事项。",
+        "你是 IT 知识库作者。请基于工单标题、问题描述和解决方案，生成结构化中文知识库草稿。"
+        "必须使用 CommonMark Markdown，不要输出 HTML。"
+        "固定使用二级标题：## 问题描述、## 解决方案、## 注意事项。列表使用 - 或数字列表。",
         f"标题：{request.title or '未提供'}\n问题描述：{request.description.strip()}\n解决方案：{resolution_notes}",
         fallback_content,
     )
