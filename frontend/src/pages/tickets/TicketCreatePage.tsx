@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Form, Input, Button, Typography, message, Spin, Empty } from 'antd';
+import { Card, Form, Input, Button, Typography, message, Spin, Empty, Modal } from 'antd';
 import { SendOutlined, SearchOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { createTicket, aiSearch, logDeflection } from '../../api';
 import type { AiSearchResult } from '../../types';
 import { useDebouncedCallback } from '../../hooks/useDebounce';
 import { useAuthStore } from '../../stores/authStore';
+import ReactMarkdown from 'react-markdown';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -24,6 +25,8 @@ export default function TicketCreatePage() {
   const [submitting, setSubmitting] = useState(false);
   const [suggestions, setSuggestions] = useState<AiSearchResult[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [selectedSuggestion, setSelectedSuggestion] = useState<AiSearchResult | null>(null);
+  const [confirmingDeflection, setConfirmingDeflection] = useState(false);
   const searchRequestSeq = useRef(0);
   const navigate = useNavigate();
   const role = useAuthStore((state) => state.role);
@@ -70,12 +73,17 @@ export default function TicketCreatePage() {
 
   const handleDeflection = async (result: AiSearchResult) => {
     const description = form.getFieldValue('description');
+    setConfirmingDeflection(true);
     try {
       await logDeflection(result.kbId, description);
       message.success('问题已解决！感谢使用自助服务。');
-      navigate(role === 'ADMIN' ? '/tickets' : '/my-tickets');
+      form.resetFields();
+      setSuggestions([]);
+      setSelectedSuggestion(null);
     } catch {
-      message.info('已记录。');
+      message.error('自助解决记录失败，请稍后重试');
+    } finally {
+      setConfirmingDeflection(false);
     }
   };
 
@@ -186,7 +194,7 @@ export default function TicketCreatePage() {
                       e.currentTarget.style.borderColor = '#f0f0f0';
                       e.currentTarget.style.background = '#fafafa';
                     }}
-                    onClick={() => handleDeflection(s)}
+                    onClick={() => setSelectedSuggestion(s)}
                   >
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                       <div style={{
@@ -214,7 +222,7 @@ export default function TicketCreatePage() {
                   </div>
                 ))}
                 <div style={{ fontSize: 11, color: '#8c8c8c', textAlign: 'center', marginTop: 8 }}>
-                  点击文章即可标记为已解决，不会创建工单
+                  点击文章可查看内容，确认有帮助后才会清空表单
                 </div>
               </>
             ) : (
@@ -230,6 +238,39 @@ export default function TicketCreatePage() {
           </div>
         </div>
       </div>
+      <Modal
+        title={selectedSuggestion?.title}
+        open={!!selectedSuggestion}
+        okText="有帮助，问题已解决"
+        cancelText="没有帮助，继续提交工单"
+        onOk={() => selectedSuggestion && handleDeflection(selectedSuggestion)}
+        onCancel={() => setSelectedSuggestion(null)}
+        confirmLoading={confirmingDeflection}
+        okButtonProps={{ icon: <CheckCircleOutlined /> }}
+        width={720}
+      >
+        {selectedSuggestion && (
+          <>
+            <Text type="secondary">
+              匹配度 {Math.round(selectedSuggestion.similarity * 100)}%
+            </Text>
+            <div style={{
+              marginTop: 12,
+              maxHeight: 460,
+              overflowY: 'auto',
+              border: '1px solid #f0f0f0',
+              borderRadius: 6,
+              padding: '12px 16px',
+              background: '#fafafa',
+              lineHeight: 1.8,
+            }}>
+              <ReactMarkdown>
+                {selectedSuggestion.content}
+              </ReactMarkdown>
+            </div>
+          </>
+        )}
+      </Modal>
     </div>
   );
 }

@@ -7,6 +7,14 @@ import { useAuthStore } from '../../stores/authStore';
 
 const { Title, Text } = Typography;
 
+function getLoginErrorMessage(error: unknown) {
+  if (typeof error !== 'object' || error === null || !('response' in error)) {
+    return '登录失败';
+  }
+  const response = (error as { response?: { data?: { message?: unknown } } }).response;
+  return typeof response?.data?.message === 'string' ? response.data.message : '登录失败';
+}
+
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -23,8 +31,8 @@ export default function LoginPage() {
       if (data.role === 'CUSTOMER') navigate('/tickets/create');
       else if (data.role === 'ENGINEER') navigate('/tickets');
       else navigate('/admin/stats');
-    } catch (err: any) {
-      message.error(err.response?.data?.message || '登录失败');
+    } catch (err) {
+      message.error(getLoginErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -40,11 +48,7 @@ export default function LoginPage() {
     }}>
       <Card style={{ width: 400, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <div style={{
-            width: 48, height: 48, background: '#1677ff', borderRadius: 12,
-            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            color: '#fff', fontSize: 24, fontWeight: 700, marginBottom: 12,
-          }}>智</div>
+          <img src="/wicrecend-logo.svg" alt="Wicrecend" style={{ width: 190, height: 56, objectFit: 'contain', marginBottom: 8 }} />
           <Title level={4} style={{ margin: 0 }}>智能工单系统</Title>
           <Text type="secondary">AI-Powered Ticket System</Text>
         </div>

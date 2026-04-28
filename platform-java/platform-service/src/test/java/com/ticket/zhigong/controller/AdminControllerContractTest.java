@@ -53,16 +53,24 @@ class AdminControllerContractTest extends ControllerContractTestSupport {
         stats.setTotalTickets(12);
         stats.setTicketsByStatus(Map.of("OPEN", 4L, "RESOLVED", 8L));
         stats.setDeflectionRate(42.5);
+        stats.setDeflectionCount(9);
+        stats.setDeflectionOpportunityCount(21);
         stats.setAvgResolutionTimeHours(3.75);
         stats.setKbArticleCount(18);
         stats.setKbPublishedCount(12);
+        stats.setKbDraftCount(6);
+        stats.setKbPublicationRate(66.7);
 
         when(adminService.getStats()).thenReturn(stats);
 
         mockMvc.perform(get("/api/admin/stats"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalTickets").value(12))
-                .andExpect(jsonPath("$.kbPublishedCount").value(12));
+                .andExpect(jsonPath("$.deflectionCount").value(9))
+                .andExpect(jsonPath("$.deflectionOpportunityCount").value(21))
+                .andExpect(jsonPath("$.kbPublishedCount").value(12))
+                .andExpect(jsonPath("$.kbDraftCount").value(6))
+                .andExpect(jsonPath("$.kbPublicationRate").value(66.7));
     }
 
     @Test

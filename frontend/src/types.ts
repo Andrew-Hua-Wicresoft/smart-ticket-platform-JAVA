@@ -68,9 +68,13 @@ export interface AdminStats {
   totalTickets: number;
   ticketsByStatus: Record<string, number>;
   deflectionRate: number;
+  deflectionCount?: number;
+  deflectionOpportunityCount?: number;
   avgResolutionTimeHours: number | null;
   kbArticleCount: number;
   kbPublishedCount: number;
+  kbDraftCount?: number;
+  kbPublicationRate?: number;
 }
 
 export type NotificationType =

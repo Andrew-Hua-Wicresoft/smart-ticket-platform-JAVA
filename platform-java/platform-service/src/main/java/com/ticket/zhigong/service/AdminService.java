@@ -38,18 +38,32 @@ public class AdminService {
         }
         stats.setTicketsByStatus(byStatus);
 
-        // Deflection rate = deflections / (deflections + total tickets)
         long deflections = deflectionRepository.countByUserIdIsNotNull();
-        double deflectionRate = (totalTickets + deflections) > 0
-                ? (double) deflections / (deflections + totalTickets) * 100
+        long deflectionOpportunities = totalTickets + deflections;
+        double deflectionRate = deflectionOpportunities > 0
+                ? (double) deflections / deflectionOpportunities * 100
                 : 0;
-        stats.setDeflectionRate(Math.round(deflectionRate * 10.0) / 10.0);
+        stats.setDeflectionCount(deflections);
+        stats.setDeflectionOpportunityCount(deflectionOpportunities);
+        stats.setDeflectionRate(roundOneDecimal(deflectionRate));
 
         stats.setAvgResolutionTimeHours(ticketRepository.averageResolutionTimeHours());
 
-        stats.setKbArticleCount(kbRepository.countTotal());
-        stats.setKbPublishedCount(kbRepository.countByStatus(KbArticleStatus.PUBLISHED));
+        long kbArticleCount = kbRepository.countTotal();
+        long kbPublishedCount = kbRepository.countByStatus(KbArticleStatus.PUBLISHED);
+        long kbDraftCount = Math.max(kbArticleCount - kbPublishedCount, 0);
+        double kbPublicationRate = kbArticleCount > 0
+                ? (double) kbPublishedCount / kbArticleCount * 100
+                : 0;
+        stats.setKbArticleCount(kbArticleCount);
+        stats.setKbPublishedCount(kbPublishedCount);
+        stats.setKbDraftCount(kbDraftCount);
+        stats.setKbPublicationRate(roundOneDecimal(kbPublicationRate));
 
         return stats;
+    }
+
+    private double roundOneDecimal(double value) {
+        return Math.round(value * 10.0) / 10.0;
     }
 }
