@@ -6,12 +6,22 @@ The current codebase is at Phase 3 of the migration plan: React calls a Java Gat
 
 Chinese documentation: [README_ZH.md](README_ZH.md)
 
+## Current Progress
+
+- Migration is complete through Phase 3: Java Gateway is the only public API entrypoint, Java Platform Service owns the business domains, and Python is limited to internal AI and embedding workflows.
+- AI workflows are operational with DeepSeek-compatible provider settings, persisted ticket diagnostics, KB-first repair suggestions, local `all-MiniLM-L6-v2` embeddings, pgvector/HNSW search, and lightweight vector + keyword hybrid recall.
+- RabbitMQ drives non-blocking AI flows: ticket creation triggers priority analysis, and ticket resolution triggers AI-generated knowledge base drafts.
+- Customer self-service is kept low-cost by searching the local knowledge base before ticket submission without automatic LLM calls.
+- Admins can submit tickets, review audit/statistics pages, and manage knowledge base drafts.
+- Knowledge base articles are stored as Markdown and rendered as Markdown in the UI; AI-generated drafts use CommonMark and can be previewed before publishing.
+- Phase 4 governance is still pending: Nacos, Sentinel, Kubernetes/Helm, CI/CD hardening, and production deployment templates are not in place yet.
+
 ## Capabilities
 
 ### Customers
 
 - Submit IT support tickets through a guided form.
-- Search the knowledge base with AI before creating a ticket.
+- Search the knowledge base with low-cost local hybrid search before creating a ticket.
 - Track personal tickets and ticket status.
 - Receive notifications when ticket status changes.
 
@@ -26,9 +36,10 @@ Chinese documentation: [README_ZH.md](README_ZH.md)
 
 ### Administrators
 
+- Submit tickets from the same guided workflow as customers.
 - View ticket and knowledge base statistics.
 - Review audit logs.
-- Manage knowledge base drafts and published articles.
+- Manage Markdown knowledge base drafts and published articles.
 - Use the same unified Java API entrypoint as the frontend.
 
 ## Architecture
@@ -246,6 +257,7 @@ The browser should call only the Gateway public API under `/api/v1/**`. The Gate
 - `POST /api/v1/ai/search` - vector and keyword hybrid search against the knowledge base.
 - `POST /api/v1/ai/refine` - improve a ticket description with the configured LLM provider.
 - `POST /api/v1/ai/suggest` - generate KB-first repair suggestions with the configured LLM provider.
+- `GET /api/v1/ai/suggest/latest` - load the latest persisted ticket AI diagnostic without another model call.
 - `POST /api/v1/ai/similar` - find similar knowledge or ticket references.
 
 ### Knowledge Base
@@ -313,8 +325,8 @@ docker compose build ai-service
 - Phase 0: MVP baseline stabilization.
 - Phase 1: Java foundation and unified Gateway.
 - Phase 2: Business domain migration to Java.
-- Phase 3: AI service boundary and RabbitMQ-driven asynchronous workflows.
-- Phase 4: Nacos, Sentinel, Kubernetes, CI/CD, and deployment hardening.
+- Phase 3: AI service boundary and RabbitMQ-driven asynchronous workflows. Current implementation is in this phase.
+- Phase 4: Nacos, Sentinel, Kubernetes, CI/CD, and deployment hardening. Not started.
 
 ## License
 
