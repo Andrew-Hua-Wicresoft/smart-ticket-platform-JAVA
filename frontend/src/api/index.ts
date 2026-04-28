@@ -3,7 +3,7 @@ import type {
   LoginResponse, TicketResponse, AiSearchResult,
   KbArticle, AdminStats, Page, TicketComment,
   NotificationItem, UnreadNotificationCount, AuditLog,
-  AiSuggestionSnapshot,
+  AiSuggestionSnapshot, TicketListFilters,
 } from '../types';
 
 // Auth
@@ -14,8 +14,19 @@ export const login = (username: string, password: string) =>
 export const createTicket = (title: string, description: string) =>
   client.post<TicketResponse>('/tickets', { title, description });
 
-export const listTickets = (page = 0, size = 20) =>
-  client.get<Page<TicketResponse>>('/tickets', { params: { page, size, sort: 'createdAt,desc' } });
+function serializeTicketFilters(filters?: TicketListFilters) {
+  return {
+    status: filters?.status?.length ? filters.status.join(',') : undefined,
+    priority: filters?.priority?.length ? filters.priority.join(',') : undefined,
+    keyword: filters?.keyword?.trim() || undefined,
+    assignee: filters?.assignee && filters.assignee !== 'ALL' ? filters.assignee : undefined,
+  };
+}
+
+export const listTickets = (page = 0, size = 20, filters?: TicketListFilters) =>
+  client.get<Page<TicketResponse>>('/tickets', {
+    params: { page, size, sort: 'createdAt,desc', ...serializeTicketFilters(filters) },
+  });
 
 export const getTicket = (id: number) =>
   client.get<TicketResponse>(`/tickets/${id}`);

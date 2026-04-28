@@ -1,12 +1,14 @@
 package com.ticket.zhigong.service;
 
 import com.ticket.zhigong.dto.TicketCreateRequest;
+import com.ticket.zhigong.dto.TicketListFilter;
 import com.ticket.zhigong.dto.TicketResolveRequest;
 import com.ticket.zhigong.dto.TicketResponse;
 import com.ticket.zhigong.entity.Ticket;
 import com.ticket.zhigong.entity.User;
 import com.ticket.zhigong.enums.AuditAction;
 import com.ticket.zhigong.enums.NotificationType;
+import com.ticket.zhigong.enums.TicketAssigneeScope;
 import com.ticket.zhigong.enums.TicketStatus;
 import com.ticket.zhigong.enums.UserRole;
 import com.ticket.zhigong.exception.BusinessException;
@@ -14,16 +16,25 @@ import com.ticket.zhigong.messaging.TicketEventPublisher;
 import com.ticket.zhigong.repository.TicketRepository;
 import com.ticket.zhigong.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.JoinType;
+import jakarta.persistence.criteria.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
 @Service
 public class TicketService {
@@ -77,24 +88,71 @@ public class TicketService {
     }
 
     public Page<TicketResponse> listTickets(Long userId, UserRole role, Pageable pageable) {
-        Page<Ticket> tickets;
+        return listTickets(userId, role, pageable, TicketListFilter.empty());
+    }
 
-        switch (role) {
-            case CUSTOMER:
-                tickets = ticketRepository.findByCustomerId(userId, pageable);
-                break;
-            case ENGINEER:
-                tickets = ticketRepository.findByStatusIn(
-                        List.of(TicketStatus.OPEN, TicketStatus.IN_PROGRESS), pageable);
-                break;
-            case ADMIN:
-                tickets = ticketRepository.findAll(pageable);
-                break;
-            default:
-                tickets = Page.empty();
+    public Page<TicketResponse> listTickets(Long userId, UserRole role, Pageable pageable, TicketListFilter filter) {
+        TicketListFilter safeFilter = filter == null ? TicketListFilter.empty() : filter;
+        List<TicketStatus> statuses = allowedStatuses(role, safeFilter);
+        if (statuses.isEmpty()) {
+            return Page.empty(pageable);
         }
 
+        Specification<Ticket> spec = buildListSpecification(userId, role, safeFilter, statuses);
+        Page<Ticket> tickets = ticketRepository.findAll(spec, pageable);
         return tickets.map(TicketResponse::fromEntity);
+    }
+
+    List<TicketStatus> allowedStatuses(UserRole role, TicketListFilter filter) {
+        List<TicketStatus> roleStatuses = switch (role) {
+            case ENGINEER -> List.of(TicketStatus.OPEN, TicketStatus.IN_PROGRESS);
+            case ADMIN, CUSTOMER -> Arrays.asList(TicketStatus.values());
+        };
+        if (filter.getStatuses().isEmpty()) {
+            return roleStatuses;
+        }
+        Set<TicketStatus> requested = new LinkedHashSet<>(filter.getStatuses());
+        return roleStatuses.stream()
+                .filter(requested::contains)
+                .toList();
+    }
+
+    private Specification<Ticket> buildListSpecification(Long userId,
+                                                         UserRole role,
+                                                         TicketListFilter filter,
+                                                         List<TicketStatus> statuses) {
+        return (root, query, criteriaBuilder) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(root.get("status").in(statuses));
+
+            if (role == UserRole.CUSTOMER) {
+                predicates.add(criteriaBuilder.equal(root.get("customer").get("id"), userId));
+            }
+
+            if (!filter.getPriorities().isEmpty()) {
+                predicates.add(root.get("priority").in(filter.getPriorities()));
+            }
+
+            if (filter.hasKeyword()) {
+                String keyword = "%" + filter.getKeyword().toLowerCase(Locale.ROOT) + "%";
+                Join<Ticket, User> customer = root.join("customer", JoinType.LEFT);
+                Join<Ticket, User> assignedEngineer = root.join("assignedEngineer", JoinType.LEFT);
+                predicates.add(criteriaBuilder.or(
+                        criteriaBuilder.like(criteriaBuilder.lower(root.get("title").as(String.class)), keyword),
+                        criteriaBuilder.like(criteriaBuilder.lower(root.get("description").as(String.class)), keyword),
+                        criteriaBuilder.like(criteriaBuilder.lower(customer.get("name").as(String.class)), keyword),
+                        criteriaBuilder.like(criteriaBuilder.lower(assignedEngineer.get("name").as(String.class)), keyword)
+                ));
+            }
+
+            if (filter.getAssignee() == TicketAssigneeScope.UNASSIGNED) {
+                predicates.add(criteriaBuilder.isNull(root.get("assignedEngineer")));
+            } else if (filter.getAssignee() == TicketAssigneeScope.ME) {
+                predicates.add(criteriaBuilder.equal(root.get("assignedEngineer").get("id"), userId));
+            }
+
+            return criteriaBuilder.and(predicates.toArray(Predicate[]::new));
+        };
     }
 
     public TicketResponse getTicket(Long ticketId, Long userId, UserRole role) {
