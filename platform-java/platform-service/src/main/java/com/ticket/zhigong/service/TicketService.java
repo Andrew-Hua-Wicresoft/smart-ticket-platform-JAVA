@@ -9,6 +9,7 @@ import com.ticket.zhigong.entity.User;
 import com.ticket.zhigong.enums.AuditAction;
 import com.ticket.zhigong.enums.NotificationType;
 import com.ticket.zhigong.enums.TicketAssigneeScope;
+import com.ticket.zhigong.enums.TicketPriority;
 import com.ticket.zhigong.enums.TicketStatus;
 import com.ticket.zhigong.enums.UserRole;
 import com.ticket.zhigong.exception.BusinessException;
@@ -16,13 +17,20 @@ import com.ticket.zhigong.messaging.TicketEventPublisher;
 import com.ticket.zhigong.repository.TicketRepository;
 import com.ticket.zhigong.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
+import jakarta.persistence.criteria.Order;
 import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -98,8 +106,8 @@ public class TicketService {
             return Page.empty(pageable);
         }
 
-        Specification<Ticket> spec = buildListSpecification(userId, role, safeFilter, statuses);
-        Page<Ticket> tickets = ticketRepository.findAll(spec, pageable);
+        Specification<Ticket> spec = buildListSpecification(userId, role, safeFilter, statuses, pageable.getSort());
+        Page<Ticket> tickets = ticketRepository.findAll(spec, withoutJpaSort(pageable));
         return tickets.map(TicketResponse::fromEntity);
     }
 
@@ -120,7 +128,8 @@ public class TicketService {
     private Specification<Ticket> buildListSpecification(Long userId,
                                                          UserRole role,
                                                          TicketListFilter filter,
-                                                         List<TicketStatus> statuses) {
+                                                         List<TicketStatus> statuses,
+                                                         Sort sort) {
         return (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(root.get("status").in(statuses));
@@ -151,7 +160,58 @@ public class TicketService {
                 predicates.add(criteriaBuilder.equal(root.get("assignedEngineer").get("id"), userId));
             }
 
+            applySort(root, query, criteriaBuilder, sort);
             return criteriaBuilder.and(predicates.toArray(Predicate[]::new));
+        };
+    }
+
+    private Pageable withoutJpaSort(Pageable pageable) {
+        if (pageable.isUnpaged()) {
+            return pageable;
+        }
+        return PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
+    }
+
+    private void applySort(Root<Ticket> root,
+                           CriteriaQuery<?> query,
+                           CriteriaBuilder criteriaBuilder,
+                           Sort sort) {
+        if (sort.isUnsorted() || Long.class.equals(query.getResultType()) || long.class.equals(query.getResultType())) {
+            return;
+        }
+
+        List<Order> orders = new ArrayList<>();
+        for (Sort.Order sortOrder : sort) {
+            Expression<?> expression = sortExpression(root, criteriaBuilder, sortOrder.getProperty());
+            if (expression != null) {
+                orders.add(sortOrder.isAscending() ? criteriaBuilder.asc(expression) : criteriaBuilder.desc(expression));
+            }
+        }
+        if (!orders.isEmpty()) {
+            query.orderBy(orders);
+        }
+    }
+
+    private Expression<?> sortExpression(Root<Ticket> root,
+                                         CriteriaBuilder criteriaBuilder,
+                                         String property) {
+        return switch (property) {
+            case "priority" -> criteriaBuilder.<Integer>selectCase()
+                    .when(criteriaBuilder.equal(root.get("priority"), TicketPriority.HIGH), 3)
+                    .when(criteriaBuilder.equal(root.get("priority"), TicketPriority.MEDIUM), 2)
+                    .when(criteriaBuilder.equal(root.get("priority"), TicketPriority.LOW), 1)
+                    .otherwise(0);
+            case "status" -> criteriaBuilder.<Integer>selectCase()
+                    .when(criteriaBuilder.equal(root.get("status"), TicketStatus.OPEN), 1)
+                    .when(criteriaBuilder.equal(root.get("status"), TicketStatus.IN_PROGRESS), 2)
+                    .when(criteriaBuilder.equal(root.get("status"), TicketStatus.RESOLVED), 3)
+                    .when(criteriaBuilder.equal(root.get("status"), TicketStatus.CLOSED), 4)
+                    .otherwise(99);
+            case "title" -> criteriaBuilder.lower(root.get("title").as(String.class));
+            case "customer.name" -> criteriaBuilder.lower(root.join("customer", JoinType.LEFT).get("name").as(String.class));
+            case "assignedEngineer.name" -> criteriaBuilder.lower(root.join("assignedEngineer", JoinType.LEFT).get("name").as(String.class));
+            case "createdAt" -> root.get("createdAt");
+            default -> null;
         };
     }
 
