@@ -84,6 +84,21 @@
 
 ## Phase 4 治理能力
 
+### Phase 4 的目的
+
+Phase 4 是对 Phase 1-3 架构的工程化加固层。当前平台已经具备核心产品链路：React 统一访问 Java Gateway，Java 持有业务域，Python 被收敛为内部 AI 服务，RabbitMQ 承载异步 AI 事件，PostgreSQL/pgvector 存储业务和检索数据。Phase 4 的目的，是让这套架构不只是在单机开发环境能跑，而是具备进入共享联调、预发和生产化改造的基础。
+
+这一阶段不是为了提前拆出更多微服务，也不是为了堆治理组件。真正目标是让现有服务边界变得可部署、可观测、可治理：
+
+- Nacos 为后续多环境、多实例运行提供服务发现和集中配置路径，避免长期依赖静态 Compose hostname。
+- Sentinel 为 Gateway、业务 API 和 AI 相关链路提供限流、熔断和流量保护路径。
+- Actuator 和 Prometheus metrics 让服务健康状态、readiness、liveness 和运行指标可被运维观察。
+- Kubernetes 和 Helm 骨架先定义可重复部署形态，避免后续进入生产化时从零补部署结构。
+- GitHub Actions 为 Java 测试、前端构建、AI 服务语法检查和容器镜像构建提供自动化质量门禁。
+- 分支保护建议明确哪些检查应该阻止不安全改动进入 `main`。
+
+这些能力在本地开发中默认关闭。默认 Compose 仍保持轻量；只有显式启用 `governance` profile 时才启动治理组件。这样既不拖慢日常开发，又为后续商用能力扩展、预发环境和生产部署留下清晰路径。
+
 - Spring Cloud Alibaba 采用与 Spring Boot 3.5、Spring Cloud 2025.0 对齐的 `2025.0.0.0` 依赖集。
 - Java 模块已加入 Nacos 注册发现/配置和 Sentinel 流量治理依赖，但默认本地开发不启用。
 - 通过 `SPRING_PROFILES_ACTIVE=governance` 和 Compose 的 `governance` profile 启用治理组件。

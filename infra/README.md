@@ -2,6 +2,8 @@
 
 This directory contains the Phase 4 governance and deployment scaffolding.
 
+Phase 4 exists to turn the completed Java Gateway + Java Platform Service + Python AI Service architecture into something that can be operated outside a single developer machine. It adds optional discovery/configuration, traffic protection, health and metrics endpoints, repeatable Kubernetes/Helm deployment shapes, CI/CD image checks, and branch protection guidance without forcing those components into the default local workflow.
+
 ## Layout
 
 | Path | Purpose |

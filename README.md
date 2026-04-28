@@ -87,6 +87,21 @@ Chinese documentation: [README_ZH.md](README_ZH.md)
 
 ## Phase 4 Governance
 
+### Why Phase 4 Exists
+
+Phase 4 is the operational hardening layer for the Phase 1-3 architecture. The platform already has the core product path in place: React reaches the system through the Java Gateway, Java owns the business domains, Python is isolated as the AI service, RabbitMQ carries asynchronous AI events, and PostgreSQL/pgvector stores business and retrieval data. Phase 4 makes that architecture safe to run beyond a single developer machine.
+
+The goal is not to split the application into more services yet. The goal is to make the existing service boundaries deployable, observable, and governable:
+
+- Nacos provides a path for service discovery and centralized configuration once the environment grows beyond static Compose hostnames.
+- Sentinel provides a path for traffic protection, rate limiting, and circuit breaking around the Gateway, platform APIs, and AI-dependent flows.
+- Actuator and Prometheus metrics make service health, readiness, liveness, and runtime behavior visible to operators.
+- Kubernetes and Helm skeletons create a repeatable deployment shape before production-specific infrastructure decisions are made.
+- GitHub Actions add an automated quality gate for Java tests, frontend builds, AI service syntax checks, and container image builds.
+- Branch protection guidance defines the checks that should block unsafe changes from landing on `main`.
+
+These pieces are intentionally optional in local development. Default Compose remains lightweight; governance is enabled only through the `governance` profile. This keeps daily development fast while giving the project a clear path toward staging, production, and later commercial hardening.
+
 - Spring Cloud Alibaba is aligned with Spring Boot 3.5 and Spring Cloud 2025.0 through the managed `2025.0.0.0` dependency set.
 - Nacos discovery/config and Sentinel traffic governance are included in the Java modules, but disabled by default for local development.
 - Enable governance with `SPRING_PROFILES_ACTIVE=governance` and the Compose `governance` profile.
