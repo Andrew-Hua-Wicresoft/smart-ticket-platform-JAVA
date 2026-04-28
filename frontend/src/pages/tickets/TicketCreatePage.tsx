@@ -4,9 +4,9 @@ import { Card, Form, Input, Button, Typography, message, Spin, Empty, Modal } fr
 import { SendOutlined, SearchOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { createTicket, aiSearch, logDeflection } from '../../api';
 import type { AiSearchResult } from '../../types';
+import MarkdownContent from '../../components/MarkdownContent';
 import { useDebouncedCallback } from '../../hooks/useDebounce';
 import { useAuthStore } from '../../stores/authStore';
-import ReactMarkdown from 'react-markdown';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -264,9 +264,7 @@ export default function TicketCreatePage() {
               background: '#fafafa',
               lineHeight: 1.8,
             }}>
-              <ReactMarkdown>
-                {selectedSuggestion.content}
-              </ReactMarkdown>
+              <MarkdownContent content={selectedSuggestion.content} />
             </div>
           </>
         )}

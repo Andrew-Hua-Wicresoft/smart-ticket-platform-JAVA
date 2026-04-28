@@ -9,14 +9,24 @@ import {
   getTicket, assignTicket, resolveTicket, aiSuggest,
   getLatestAiSuggestion, listTicketComments, addTicketComment,
 } from '../../api';
+import MarkdownContent from '../../components/MarkdownContent';
 import { useAuthStore } from '../../stores/authStore';
 import StatusDot from '../../components/StatusDot';
 import type { TicketResponse, TicketPriority, TicketComment } from '../../types';
-import ReactMarkdown from 'react-markdown';
 import dayjs from 'dayjs';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
+
+function getApiErrorMessage(error: unknown, fallback: string) {
+  if (typeof error !== 'object' || error === null || !('response' in error)) {
+    return error instanceof Error ? error.message : fallback;
+  }
+  const response = (error as { response?: { data?: { message?: unknown; error?: unknown } } }).response;
+  if (typeof response?.data?.message === 'string') return response.data.message;
+  if (typeof response?.data?.error === 'string') return response.data.error;
+  return fallback;
+}
 
 const priorityConfig: Record<TicketPriority, { color: string; label: string }> = {
   HIGH: { color: 'red', label: '高优先级' },
@@ -72,8 +82,8 @@ export default function TicketDetailPage() {
       const { data } = await assignTicket(ticket.id);
       setTicket(data);
       message.success('工单已接取');
-    } catch (err: any) {
-      message.error(err.response?.data?.message || '接取失败');
+    } catch (err) {
+      message.error(getApiErrorMessage(err, '接取失败'));
     } finally {
       setAssigning(false);
     }
@@ -89,8 +99,8 @@ export default function TicketDetailPage() {
       const { data } = await resolveTicket(ticket.id, resolutionNotes);
       setTicket(data);
       message.success('工单已解决，KB文章正在后台生成');
-    } catch (err: any) {
-      message.error(err.response?.data?.message || '解决失败');
+    } catch (err) {
+      message.error(getApiErrorMessage(err, '解决失败'));
     } finally {
       setResolving(false);
     }
@@ -103,8 +113,8 @@ export default function TicketDetailPage() {
       const { data } = await aiSuggest(ticket.id, ticket.title, ticket.description);
       setSuggestion(data.suggestion);
       setSuggestionCreatedAt(new Date().toISOString());
-    } catch (err: any) {
-      const reason = err.response?.data?.message || err.response?.data?.error || err.message;
+    } catch (err) {
+      const reason = getApiErrorMessage(err, 'AI暂时不可用');
       setSuggestion(reason ? `AI诊断失败：${reason}` : 'AI暂时不可用');
       setSuggestionCreatedAt(null);
     } finally {
@@ -123,8 +133,8 @@ export default function TicketDetailPage() {
       setComments((current) => [...current, data]);
       setCommentContent('');
       message.success('评论已添加');
-    } catch (err: any) {
-      message.error(err.response?.data?.message || '添加评论失败');
+    } catch (err) {
+      message.error(getApiErrorMessage(err, '添加评论失败'));
     } finally {
       setCommentLoading(false);
     }
@@ -302,36 +312,12 @@ export default function TicketDetailPage() {
                       最近诊断：{dayjs(suggestionCreatedAt).format('YYYY-MM-DD HH:mm')}
                     </div>
                   )}
-                  <div className="ai-markdown" style={{
+                  <div style={{
                     background: '#fff', border: '1px solid #f0f0f0', borderRadius: 6,
                     padding: '12px 16px', fontSize: 13, lineHeight: 1.8,
                     maxHeight: 600, overflowY: 'auto',
                   }}>
-                    <ReactMarkdown
-                      components={{
-                        h1: ({ children }) => <h3 style={{ fontSize: 16, fontWeight: 600, margin: '16px 0 8px', color: '#262626', borderBottom: '1px solid #f0f0f0', paddingBottom: 8 }}>{children}</h3>,
-                        h2: ({ children }) => <h4 style={{ fontSize: 15, fontWeight: 600, margin: '14px 0 6px', color: '#262626' }}>{children}</h4>,
-                        h3: ({ children }) => <h5 style={{ fontSize: 14, fontWeight: 600, margin: '12px 0 4px', color: '#722ed1' }}>{children}</h5>,
-                        p: ({ children }) => <p style={{ margin: '6px 0', color: '#595959' }}>{children}</p>,
-                        ul: ({ children }) => <ul style={{ paddingLeft: 20, margin: '4px 0' }}>{children}</ul>,
-                        ol: ({ children }) => <ol style={{ paddingLeft: 20, margin: '4px 0' }}>{children}</ol>,
-                        li: ({ children }) => <li style={{ marginBottom: 3, color: '#595959' }}>{children}</li>,
-                        strong: ({ children }) => <strong style={{ color: '#262626' }}>{children}</strong>,
-                        code: ({ children, className }) => {
-                          const isBlock = className?.includes('language-');
-                          return isBlock ? (
-                            <pre style={{ background: '#f5f5f5', padding: 12, borderRadius: 4, overflow: 'auto', fontSize: 12, margin: '8px 0' }}>
-                              <code>{children}</code>
-                            </pre>
-                          ) : (
-                            <code style={{ background: '#f5f5f5', padding: '1px 4px', borderRadius: 3, fontSize: 12, color: '#d4380d' }}>{children}</code>
-                          );
-                        },
-                        hr: () => <hr style={{ border: 'none', borderTop: '1px solid #f0f0f0', margin: '12px 0' }} />,
-                      }}
-                    >
-                      {suggestion}
-                    </ReactMarkdown>
+                    <MarkdownContent content={suggestion} />
                   </div>
                   <Button
                     block
