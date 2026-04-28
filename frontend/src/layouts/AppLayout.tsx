@@ -66,11 +66,7 @@ export default function AppLayout() {
   const filteredItems = allMenuItems.filter((item) => role && item.roles.includes(role));
 
   useEffect(() => {
-    if (!role) {
-      setUnreadCount(0);
-      return;
-    }
-    refreshUnreadCount();
+    if (role) refreshUnreadCount();
   }, [role, location.pathname]);
 
   useEffect(() => {
@@ -130,19 +126,24 @@ export default function AppLayout() {
     <Layout style={{ minHeight: '100vh' }}>
       <Sider width={220} theme="dark" style={{ position: 'fixed', height: '100vh', left: 0, top: 0 }}>
         <div style={{
-          height: 48,
+          height: 56,
           display: 'flex',
           alignItems: 'center',
-          padding: '0 16px',
-          gap: 8,
+          justifyContent: 'center',
+          padding: '0 14px',
           borderBottom: '1px solid rgba(255,255,255,0.06)',
         }}>
           <div style={{
-            width: 28, height: 28, background: '#1677ff', borderRadius: 6,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#fff', fontSize: 14, fontWeight: 700,
-          }}>智</div>
-          <span style={{ color: '#fff', fontSize: 14, fontWeight: 500 }}>智能工单</span>
+            width: '100%',
+            height: 36,
+            background: '#fff',
+            borderRadius: 8,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            <img src="/wicrecend-logo.svg" alt="Wicrecend" style={{ width: 150, height: 38, objectFit: 'contain' }} />
+          </div>
         </div>
         <style>{`.ant-menu-item-group-title { font-size: 11px !important; text-transform: uppercase; opacity: 0.3 !important; letter-spacing: 0.5px; }`}</style>
         <Menu
