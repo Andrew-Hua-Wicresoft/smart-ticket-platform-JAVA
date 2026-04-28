@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Form, Input, Button, Typography, message, Spin, Empty } from 'antd';
 import { SendOutlined, SearchOutlined, CheckCircleOutlined } from '@ant-design/icons';
@@ -24,11 +24,13 @@ export default function TicketCreatePage() {
   const [submitting, setSubmitting] = useState(false);
   const [suggestions, setSuggestions] = useState<AiSearchResult[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  const searchRequestSeq = useRef(0);
   const navigate = useNavigate();
   const role = useAuthStore((state) => state.role);
+  const title = Form.useWatch('title', form) || '';
+  const description = Form.useWatch('description', form) || '';
 
-  const debouncedSearch = useDebouncedCallback(async (description: string) => {
-    const query = `${form.getFieldValue('title') || ''}\n${description || ''}`.trim();
+  const [debouncedSearch, cancelDebouncedSearch] = useDebouncedCallback(async (query: string, requestSeq: number) => {
     if (query.length < MIN_SELF_SERVICE_QUERY_LENGTH) {
       setSuggestions([]);
       return;
@@ -36,17 +38,35 @@ export default function TicketCreatePage() {
     setSearchLoading(true);
     try {
       const { data } = await aiSearch(query, 3);
-      setSuggestions(data);
+      if (requestSeq === searchRequestSeq.current) {
+        setSuggestions(data);
+      }
     } catch {
       // Self-service search is non-blocking; users can still submit tickets.
+      if (requestSeq === searchRequestSeq.current) {
+        setSuggestions([]);
+      }
     } finally {
-      setSearchLoading(false);
+      if (requestSeq === searchRequestSeq.current) {
+        setSearchLoading(false);
+      }
     }
   }, 800);
 
-  const handleDescriptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    debouncedSearch(e.target.value);
-  };
+  useEffect(() => {
+    const query = `${title}\n${description}`.trim();
+    const requestSeq = searchRequestSeq.current + 1;
+    searchRequestSeq.current = requestSeq;
+
+    if (query.length < MIN_SELF_SERVICE_QUERY_LENGTH) {
+      cancelDebouncedSearch();
+      setSuggestions([]);
+      setSearchLoading(false);
+      return;
+    }
+
+    debouncedSearch(query, requestSeq);
+  }, [title, description, debouncedSearch, cancelDebouncedSearch]);
 
   const handleDeflection = async (result: AiSearchResult) => {
     const description = form.getFieldValue('description');
@@ -102,7 +122,6 @@ export default function TicketCreatePage() {
               <TextArea
                 rows={6}
                 placeholder="详细描述您的问题，包括错误信息、操作步骤等（10-5000字）"
-                onChange={handleDescriptionChange}
                 showCount
                 maxLength={5000}
               />
