@@ -1,6 +1,14 @@
 spring:
   application:
     name: platform-service
+  cloud:
+    nacos:
+      discovery:
+        enabled: ${NACOS_DISCOVERY_ENABLED:false}
+      config:
+        enabled: ${NACOS_CONFIG_ENABLED:false}
+    sentinel:
+      enabled: ${SENTINEL_ENABLED:false}
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/zhigong}
     username: ${SPRING_DATASOURCE_USERNAME:zhigong}
@@ -52,7 +60,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,metrics,prometheus
 
 logging:
   level:

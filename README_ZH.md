@@ -2,7 +2,7 @@
 
 这是一个面向企业内部 IT 服务台的 AI 辅助工单平台，采用 Java 业务中台 + Python AI 微服务的混合架构。
 
-当前代码处于迁移计划的 Phase 3：前端统一访问 Java Gateway，业务域由 Java Platform Service 持有，Python 仅作为内部 AI 服务保留大模型与向量化能力。Phase 4 的 Nacos、Sentinel、Kubernetes 等治理与部署强化尚未开始。
+当前代码已进入迁移计划的 Phase 4：前端统一访问 Java Gateway，业务域由 Java Platform Service 持有，Python 仅作为内部 AI 服务保留大模型与向量化能力，同时仓库已经加入 Nacos、Sentinel、Kubernetes、Helm 和 CI/CD 的治理部署骨架。
 
 英文文档：[README.md](README.md)
 
@@ -14,7 +14,7 @@
 - 用户自助服务以低成本为原则：提交工单前优先检索本地知识库，不自动调用大模型。
 - 管理员可以提交工单、查看统计和审计日志，并管理知识库草稿。
 - 知识库文章以 Markdown 原文存储，前端按 Markdown 渲染；AI 生成的草稿使用 CommonMark，可在发布前预览。
-- Phase 4 治理能力尚未开始：Nacos、Sentinel、Kubernetes/Helm、CI/CD 强化和生产部署模板仍待补充。
+- Phase 4 治理能力已开始：Nacos/Sentinel 可通过 Compose profile 按需启用，Kubernetes/Kustomize 与 Helm 骨架已补充，GitHub Actions 已覆盖 CI 和容器镜像构建。
 
 ## 核心能力
 
@@ -82,6 +82,15 @@
 | `postgres` | 共享 PostgreSQL 16 实例，启用 pgvector |
 | `rabbitmq` | 异步工单和 AI 工作流事件 |
 
+## Phase 4 治理能力
+
+- Spring Cloud Alibaba 采用与 Spring Boot 3.5、Spring Cloud 2025.0 对齐的 `2025.0.0.0` 依赖集。
+- Java 模块已加入 Nacos 注册发现/配置和 Sentinel 流量治理依赖，但默认本地开发不启用。
+- 通过 `SPRING_PROFILES_ACTIVE=governance` 和 Compose 的 `governance` profile 启用治理组件。
+- Java 服务暴露 Actuator health、readiness、liveness、metrics 和 Prometheus 端点。
+- Kubernetes manifests 位于 `infra/k8s`，Helm 骨架位于 `infra/helm/smart-ticket-platform`。
+- 仓库内置的 Postgres、RabbitMQ、Nacos、Sentinel 部署文件只作为开发和联调脚手架。正式商用前建议替换为托管服务或独立生产集群。
+
 ## 事件模型
 
 Phase 3 使用 RabbitMQ 作为 AI 与知识库流程的异步骨架。
@@ -111,13 +120,13 @@ Phase 3 使用 RabbitMQ 作为 AI 与知识库流程的异步骨架。
 | 层级 | 技术 |
 | --- | --- |
 | 前端 | React 19、TypeScript 5.9、Ant Design 6、Zustand 5、Vite 8 |
-| 网关 | Spring Cloud Gateway、Spring Boot 3.5 |
-| Java 业务中台 | Spring Boot 3.5、Java 17、Spring Data JPA、Spring Security、JWT、RabbitMQ |
+| 网关 | Spring Cloud Gateway、Spring Boot 3.5、Spring Cloud Alibaba Nacos/Sentinel |
+| Java 业务中台 | Spring Boot 3.5、Java 17、Spring Data JPA、Spring Security、JWT、RabbitMQ、Spring Cloud Alibaba Nacos/Sentinel |
 | AI 微服务 | Python 3.11、FastAPI、LangChain、SQLAlchemy、sentence-transformers |
 | 数据库 | PostgreSQL 16、pgvector、HNSW 索引、`vector(384)` |
 | 消息中间件 | RabbitMQ 4.1 management 镜像 |
-| 基础设施 | Docker Compose、Maven，后续扩展 Kubernetes |
-| 后续治理 | Phase 4 接入 Nacos、Sentinel、Kubernetes、Helm 骨架 |
+| 基础设施 | Docker Compose、Maven、Kubernetes/Kustomize、Helm 骨架、GitHub Actions |
+| 治理组件 | Nacos 3.0.3、Sentinel 1.8.9 Dashboard、Actuator、Prometheus metrics |
 
 ## 快速启动
 
@@ -206,6 +215,31 @@ docker compose up --build
 
 该命令会启动 PostgreSQL、RabbitMQ、AI 服务、Platform Service 和 Gateway。日常本地开发通常单独使用 `npm run dev` 启动前端。
 
+### 启用治理组件
+
+```bash
+SPRING_PROFILES_ACTIVE=governance \
+docker compose --profile governance --profile frontend up --build
+```
+
+常用本地地址：
+
+- Gateway：http://localhost:8080
+- 前端容器：http://localhost:5173
+- Nacos：http://localhost:8848/nacos
+- Sentinel Dashboard：http://localhost:8858
+
+如果只做轻量本地开发，保持 `SPRING_PROFILES_ACTIVE` 为空即可。
+
+### Kubernetes 和 Helm 骨架
+
+```bash
+kubectl apply -k infra/k8s/overlays/dev
+helm template smart-ticket infra/helm/smart-ticket-platform
+```
+
+部署到共享集群前，需要将 `infra/k8s/base/secret.example.yaml` 替换为真实 Secret 或外部密钥管理方案，设置生产镜像 tag，并明确 Postgres、RabbitMQ、Nacos、Sentinel 是否使用集群外托管服务。
+
 ## 演示账号
 
 所有演示账号密码均为 `demo123`。
@@ -285,7 +319,7 @@ docker compose build ai-service
 .
 ├── ai-service/                       # FastAPI AI 与向量化服务
 ├── frontend/                         # React 前端应用
-├── infra/                            # 基础设施说明和后续部署资产
+├── infra/                            # Compose、Kubernetes、Helm 和治理说明
 ├── platform-java/
 │   ├── gateway/                      # Spring Cloud Gateway
 │   └── platform-service/             # Spring Boot 业务中台
@@ -304,14 +338,15 @@ docker compose build ai-service
 - 大模型输出在持久化前会进行清理。
 - AI 交互和业务变更会记录审计信息。
 - 密钥必须保存在 `.env` 或部署密钥系统中，不能提交到 Git。
+- Nacos 和 Sentinel Dashboard 必须放在内网，不应直接暴露到公网。
 
 ## 路线图
 
 - Phase 0：MVP 基线稳定。
 - Phase 1：Java 基座和统一 Gateway。
 - Phase 2：业务域迁移到 Java。
-- Phase 3：AI 服务边界和 RabbitMQ 异步工作流。当前实现处于这一阶段。
-- Phase 4：Nacos、Sentinel、Kubernetes、CI/CD 和部署强化。尚未开始。
+- Phase 3：AI 服务边界和 RabbitMQ 异步工作流。
+- Phase 4：Nacos、Sentinel、Kubernetes、CI/CD 和部署强化。当前实现处于这一阶段。
 
 ## 许可证
 

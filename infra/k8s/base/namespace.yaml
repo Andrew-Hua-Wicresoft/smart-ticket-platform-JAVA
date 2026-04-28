@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: smart-ticket
+  labels:
+    app.kubernetes.io/name: smart-ticket-platform
+    app.kubernetes.io/part-of: smart-ticket-platform

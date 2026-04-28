@@ -1,0 +1,6 @@
+apiVersion: v2
+name: smart-ticket-platform
+description: Helm skeleton for the Smart Ticket Platform governance deployment.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

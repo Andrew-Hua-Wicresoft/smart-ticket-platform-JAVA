@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: smart-ticket-config
+  labels:
+    app.kubernetes.io/name: smart-ticket-platform
+data:
+  POSTGRES_DB: zhigong
+  POSTGRES_USER: zhigong
+  SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/zhigong
+  SQL_INIT_MODE: always
+  RABBITMQ_HOST: rabbitmq
+  RABBITMQ_PORT: "5672"
+  AI_SERVICE_URL: http://ai-service:8100
+  PLATFORM_SERVICE_URL: http://platform-service:8081
+  GATEWAY_RESPONSE_TIMEOUT: 45s
+  SPRING_PROFILES_ACTIVE: governance
+  NACOS_SERVER_ADDR: nacos:8848
+  NACOS_NAMESPACE: ""
+  NACOS_GROUP: DEFAULT_GROUP
+  SENTINEL_DASHBOARD: sentinel-dashboard:8858
+  AI_PROVIDER: deepseek
+  AI_MODEL: deepseek-v4-pro
+  AI_BASE_URL: https://api.deepseek.com
+  AI_REQUEST_TIMEOUT_SECONDS: "45"
+  EMBEDDING_MODEL: sentence-transformers/all-MiniLM-L6-v2

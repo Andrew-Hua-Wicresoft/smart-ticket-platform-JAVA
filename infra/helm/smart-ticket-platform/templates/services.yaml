@@ -1,0 +1,26 @@
+{{- $root := . -}}
+{{- $apps := dict
+  "frontend" .Values.frontend
+  "gateway" .Values.gateway
+  "platform-service" .Values.platformService
+  "ai-service" .Values.aiService
+-}}
+{{- range $name, $app := $apps }}
+{{- if $app.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "smart-ticket.labels" $root | nindent 4 }}
+    app.kubernetes.io/component: {{ $name }}
+spec:
+  ports:
+    - name: http
+      port: {{ $app.port }}
+      targetPort: http
+  selector:
+    app.kubernetes.io/component: {{ $name }}
+---
+{{- end }}
+{{- end }}
