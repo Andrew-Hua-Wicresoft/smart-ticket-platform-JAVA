@@ -1,52 +1,37 @@
 # 智能工单系统 — Project Rules
 
-## Design System
+## Design System (v2 · Operator's Console)
 Always read DESIGN.md before making any visual or UI decisions.
-All font choices, colors, spacing, and aesthetic direction are defined there.
+All tokens, fonts, colors, spacing, and the AI marker system are defined there.
 Do not deviate without explicit user approval.
 In QA mode, flag any code that doesn't match DESIGN.md.
 
-Key rules:
-- Blue (#1677ff) = user actions only
-- Purple (#722ed1) = AI-generated content only
-- Never mix blue and purple semantics
-- System fonts only, no external font loading
-- 8px spacing grid, comfortable density
+Hard rules (any violation is a regression):
+- All colors via CSS variables (`var(--brand)`, `var(--ai)`, etc.). NEVER hardcode hex.
+- Brand indigo `--brand` (#5b6cff light / #818cf8 dark) = user actions only.
+- AI violet `--ai` (#7c3aed light / #a78bfa dark) = AI marker only — used as sigil color, 2px left border, match scores. NEVER as full panel background.
+- `✦` sigil (Unicode U+2726) prefixes all AI-touched labels, headers, and table titles.
+- AI generated body text is `font-style: italic` for Latin/numbers/code. Chinese characters stay upright.
+- 2px left border on all AI content blocks/panels.
+- Sidebar is LIGHT (`--surface` background, 1px border) — never dark theme.
+- Cards use 1px hairline borders, NEVER `box-shadow`.
+- Typography: Inter Tight (display) + Inter (body Latin) + PingFang SC/Microsoft YaHei (CJK) + Geist Mono (data/code).
+- KPI numbers are 40px Inter Tight 600 with `font-variant-numeric: tabular-nums`.
+- Dark mode is first-class (`[data-theme="dark"]` on `<html>`). Never test only in light.
+- 8px spacing grid, 24px page padding, target 15-20 ticket rows visible above the fold.
+- No decorative gradients. Skeleton loading shimmer is the only allowed gradient exception.
 
-## Current state (2026-04-27)
+## Current state (2026-05-06)
 
-Phase 0–3 complete on `refactor/phase-3-ai-service-boundary`. Phase 4
-(Nacos / Sentinel / Kubernetes) not started.
+Phase 0-4 have been delivered into `main`: Java Gateway is the only public API entrypoint, Java Platform Service owns business domains, Python is the internal AI service, RabbitMQ drives async AI workflows, and Phase 4 adds optional Nacos/Sentinel governance plus Docker/Kubernetes/Helm/CI scaffolding.
 
-Stack: React + Vite frontend, Java Gateway (Spring Cloud Gateway), Java
-Platform Service (Spring Boot 3.5 + JPA), Python AI Service (FastAPI +
-DeepSeek + sentence-transformers), PostgreSQL 16 + pgvector, RabbitMQ.
+Stack: React 19 + Vite frontend, Java Gateway (Spring Cloud Gateway), Java Platform Service (Spring Boot 3.5 + JPA), Python AI Service (FastAPI + DeepSeek-compatible provider + sentence-transformers), PostgreSQL 16 + pgvector, RabbitMQ.
 
-Local dev runs hybrid: Docker for `postgres` / `rabbitmq` / `ai-service`
-(see `docker-compose.yml`); native Maven for `gateway` (`:8080`) and
-`platform-service` (`:8081`); native `npm run dev` for `frontend`
-(`:5173`). Build context for Docker is trimmed by the root
-`.dockerignore` and `ai-service/.dockerignore`.
+Local dev runs hybrid: Docker for `postgres` / `rabbitmq` / `ai-service`; native Maven for `gateway` (`:8080`) and `platform-service` (`:8081`); native `npm run dev` for `frontend` (`:5173`). Governance services are opt-in through the Compose `governance` profile.
 
-Service health:
-- frontend → http://localhost:5173/
-- gateway → http://localhost:8080/actuator/health
-- platform → http://localhost:8081/actuator/health
-- ai-service → http://localhost:8100/health
+Demo credentials (all `demo123`): `admin1` (ADMIN), `engineer1` / `engineer2` (ENGINEER), `customer1` / `customer2` / `customer3` (CUSTOMER). Seeded via `platform-java/platform-service/src/main/resources/data.sql`.
 
-Demo credentials (all `demo123`): `admin1` (ADMIN), `engineer1` /
-`engineer2` (ENGINEER), `customer1` / `customer2` / `customer3` (CUSTOMER).
-Seeded via `platform-java/platform-service/src/main/resources/data.sql`.
-
-Schema bootstrap: `spring.sql.init.mode` defaults to `always` so a stale
-local DB is self-healing on cold start. `schema.sql` is idempotent
-(`CREATE TABLE IF NOT EXISTS`); `data.sql` uses `INSERT … WHERE NOT
-EXISTS`. Override with `SQL_INIT_MODE=never` for production-style runs.
-
-`.env` is gitignored and contains a real DeepSeek key. Never echo,
-commit, or paste it. Use `.env.example` for sharing variable shape.
-
-QA reports live in `.gstack/qa-reports/`.
+`.env` is gitignored and may contain real local secrets. Never echo, commit, or paste it. Use `.env.example` for sharing variable shape.
 
 ## Skill routing
 
